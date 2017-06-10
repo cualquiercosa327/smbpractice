@@ -72,7 +72,7 @@ ScreenRoutineTask     = $073c
 GamePauseStatus       = $0776
 GamePauseTimer        = $0777
 
-DemoAction            = $0717
+RuleIndex             = $0717
 DemoActionTimer       = $0718
 
 TimerControl          = $0747
@@ -206,7 +206,7 @@ PlayerEntranceCtrl    = $0710
 GameTimerSetting      = $0715
 AltEntranceControl    = $0752
 EntrancePage          = $0751
-NumberOfPlayers       = $077a
+MenuSelection         = $077a
 WarpZoneControl       = $06d6
 ChangeAreaTimer       = $06de
 
@@ -989,6 +989,12 @@ DrawSelectedNumber:
 		sta VRAM_Buffer1+2,x
 		tya
 		sta VRAM_Buffer1+3,x
+		lda #0
+		sta VRAM_Buffer1+4,x
+		txa
+		clc
+		adc #4
+		sta VRAM_Buffer1_Offset
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -996,83 +1002,141 @@ DrawSelectedNumber:
 NukeTimer:
 		lda #0
 		sta SelectTimer
-		rts
+		jmp MenuDone
+
+ChangeSelection:
+		ldx MenuSelection
+		inx
+		cpx #3
+		bne SaveSelection
+		ldx #0
+SaveSelection:
+		stx MenuSelection
+		jmp MenuDone
 
 GameMenuRoutine:
-		lda SelectTimer
-		bne CantMove
 		lda SavedJoypad1Bits
 		beq NukeTimer
-		cmp #Right_Dir
-		beq MenuDone
+		ldx SelectTimer
+		bne CantMove
 		cmp #Select_Button
 		beq ChangeSelection
-		lda WorldNumber
-		clc
-		adc #$01
-		and #$07
-		sta WorldNumber
-		tay
-		iny
-		lda #$4B
-		jsr DrawSelectedNumber
-		lda #21
-		sta SelectTimer
+		jmp SelectionInput
 CantMove:
+		lda SelectTimer
+		beq MenuDone
 		dec SelectTimer
 MenuDone:
 		lda #$00                    ;clear joypad bits for player 1
 		sta SavedJoypad1Bits
+		jsr DrawMushroomIcon
+		jsr DrawRuleInput
 		rts
-ChangeSelection:
+
+;-------------------------------------------------------------------------------------
+
+RuleInput:
+		rts
+
+;-------------------------------------------------------------------------------------
+
+SelectionInput:
+		ldy WorldNumber
+		ldx MenuSelection
+		beq ValueSelected
+		cpx #1
+		bne RuleInput
+		ldy LevelNumber
+ValueSelected:
+		cmp #Left_Dir
+		beq DecreaseLevel
+		cmp #Right_Dir
+		bne WorldSelectionDone
+IncreaseLevel:
+		iny
+		jmp SaveNewLevel
+DecreaseLevel:
+		dey
+SaveNewLevel:
+		tya
+		cpx #1
+		beq SaveLevelNotWorld
+		and #$07
+		sta WorldNumber
+		ldx #$4B ; offset
+		jmp RedrawIt
+SaveLevelNotWorld:
+		cmp #$04
+		bne NotTooBig
+		lda #0
+NotTooBig:
+		cmp #0
+		bpl NotTooSmall
+		lda #3
+NotTooSmall:
+		sta LevelNumber
+		ldx #$8b ; offset
+RedrawIt:
+		tay
+		iny
+		txa
+		jsr DrawSelectedNumber
+		lda #20
+		sta SelectTimer
+WorldSelectionDone:
+		rts
+
+;-------------------------------------------------------------------------------------
+
+DrawRuleInput:
+		ldx VRAM_Buffer1_Offset
+		lda #$22
+		sta VRAM_Buffer1,x
+		lda #$d1
+		sta VRAM_Buffer1+1,x
+		lda #1
+		sta VRAM_Buffer1+2,x
+		lda #$ce
+		sta VRAM_Buffer1+3,x
+		lda #0
+		sta VRAM_Buffer1+4,x
+		txa
+		clc
+		adc #4
+		sta VRAM_Buffer1_Offset
 		rts
 
 ;-------------------------------------------------------------------------------------
 
 MushroomIconData:
-      .db $07, $22, $49, $83, $ce, $24, $24, $00
+      .db $22, $49, $86, $24, $24, $24, $24, $24, $24, $00
 
 DrawMushroomIcon:
-              ldy #$07                ;read eight bytes to be read by transfer routine
-IconDataRead: lda MushroomIconData,y  ;note that the default position is set for a
-              sta VRAM_Buffer1-1,y    ;1-player game
+              ldy #$09
+              lda VRAM_Buffer1_Offset
+              clc
+              adc #$09
+              sta VRAM_Buffer1_Offset
+              tax
+IconDataRead: lda MushroomIconData,y
+              sta VRAM_Buffer1,x
+              dex
               dey
               bpl IconDataRead
-              lda NumberOfPlayers     ;check number of players
-              beq ExitIcon            ;if set to 1-player game, we're done
-              lda #$24                ;otherwise, load blank tile in 1-player position
-              sta VRAM_Buffer1+3
-              lda #$ce                ;then load shroom icon tile in 2-player position
-              sta VRAM_Buffer1+5
-ExitIcon:     rts
-
-;-------------------------------------------------------------------------------------
-
-DemoActionData:
-      .db $01, $80, $02, $81, $41, $80, $01
-      .db $42, $c2, $02, $80, $41, $c1, $41, $c1
-      .db $01, $c1, $01, $02, $80, $00
-
-DemoTimingData:
-      .db $9b, $10, $18, $05, $2c, $20, $24
-      .db $15, $5a, $10, $20, $28, $30, $20, $10
-      .db $80, $20, $30, $30, $01, $ff, $00
-
-DemoEngine:
-          ldx DemoAction         ;load current demo action
-          lda DemoActionTimer    ;load current action timer
-          bne DoAction           ;if timer still counting down, skip
-          inx
-          inc DemoAction         ;if expired, increment action, X, and
-          sec                    ;set carry by default for demo over
-          lda DemoTimingData-1,x ;get next timer
-          sta DemoActionTimer    ;store as current timer
-          beq DemoOver           ;if timer already at zero, skip
-DoAction: lda DemoActionData-1,x ;get and perform action (current or next)
-          sta SavedJoypad1Bits
-          dec DemoActionTimer    ;decrement action timer
-          clc                    ;clear carry if demo still going
-DemoOver: rts
+              inx
+              lda #$ce
+              ldy MenuSelection
+              bne IsLevelSelected
+              sta VRAM_Buffer1+3,x
+              rts
+IsLevelSelected:
+              dey
+              bne RuleSelected
+              sta VRAM_Buffer1+5,x
+              rts
+RuleSelected:
+              sta VRAM_Buffer1+8,x
+              rts
 
 ;-------------------------------------------------------------------------------------
 
@@ -1678,9 +1742,7 @@ WriteGameText:
                cpy #$08                 ;if set to do time-up or game over,
                bcc Chk2Players          ;branch to check players
                ldy #$08                 ;otherwise warp zone, therefore set offset
-Chk2Players:   lda NumberOfPlayers      ;check for number of players
-               bne LdGameText           ;if there are two, use current offset to also print name
-               iny                      ;otherwise increment offset by one to not print name
+Chk2Players:   iny                      ;otherwise increment offset by one to not print name
 LdGameText:    ldx GameTextOffsets,y    ;get offset to message we want to print
                ldy #$00
 GameTextLoop:  lda GameText,x           ;load message data
@@ -1697,7 +1759,7 @@ EndGameText:   lda #$00                 ;put null terminator at end
                cmp #$04                 ;are we printing warp zone?
                bcs PrintWarpZoneNumbers
                dex                      ;are we printing the world/lives display?
-               bne CheckPlayerName      ;if not, branch to check player's name
+               rts
                lda NumberofLives        ;otherwise, check number of lives
                clc                      ;and increment by one for display
                adc #$01
@@ -1714,25 +1776,6 @@ PutLives:      sta VRAM_Buffer1+8
                iny
                sty VRAM_Buffer1+21      ;we're done here
                rts
-
-CheckPlayerName:
-             lda NumberOfPlayers    ;check number of players
-             beq ExitChkName        ;if only 1 player, leave
-             lda CurrentPlayer      ;load current player
-             dex                    ;check to see if current message number is for time up
-             bne ChkLuigi
-             ldy OperMode           ;check for game over mode
-             cpy #GameOverModeValue
-             beq ChkLuigi
-             eor #%00000001         ;if not, must be time up, invert d0 to do other player
-ChkLuigi:    lsr
-             bcc ExitChkName        ;if mario is current player, do not change the name
-             ldy #$04
-NameLoop:    lda LuigiName,y        ;otherwise, replace "MARIO" with "LUIGI"
-             sta VRAM_Buffer1+3,y
-             dey
-             bpl NameLoop           ;do this until each letter is replaced
-ExitChkName: rts
 
 PrintWarpZoneNumbers:
              sbc #$04               ;subtract 4 and then shift to the left
@@ -2959,26 +3002,9 @@ ContinueGame:
            sta OperMode              ;game mode, because game is still on
 GameIsOn:  rts
 
-TransposePlayers:
-           sec                       ;set carry flag by default to end game
-           lda NumberOfPlayers       ;if only a 1 player game, leave
-           beq ExTrans
-           lda OffScr_NumberofLives  ;does offscreen player have any lives left?
-           bmi ExTrans               ;branch if not
-           lda CurrentPlayer         ;invert bit to update
-           eor #%00000001            ;which player is on the screen
-           sta CurrentPlayer
-           ldx #$06
-TransLoop: lda OnscreenPlayerInfo,x    ;transpose the information
-           pha                         ;of the onscreen player
-           lda OffscreenPlayerInfo,x   ;with that of the offscreen player
-           sta OnscreenPlayerInfo,x
-           pla
-           sta OffscreenPlayerInfo,x
-           dex
-           bpl TransLoop
-           clc            ;clear carry flag to get game going
-ExTrans:   rts
+TransposePlayers: ; TODO This can be removed complete if we need more bytes
+           sec ;set carry flag by default to end game
+           rts
 
 ;-------------------------------------------------------------------------------------
 
@@ -7051,6 +7077,11 @@ GetSBNybbles:
       lda #STATUS_BAR_OFFSET
 UpdateNumber:
         jsr PrintStatusBarNumbers ;print status bar numbers based on nybbles, whatever they be
+		ldy VRAM_Buffer1_Offset   
+        lda VRAM_Buffer1-6,y      ;check highest digit of score
+        bne NoZSup                ;if zero, overwrite with space tile for zero suppression
+        lda #$24
+        sta VRAM_Buffer1-6,y
 NoZSup: ldx ObjectOffset          ;get enemy object buffer offset
         rts
 
