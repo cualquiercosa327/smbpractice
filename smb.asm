@@ -1092,7 +1092,7 @@ DrawRuleInput:
 		ldx VRAM_Buffer1_Offset
 		lda #$22
 		sta VRAM_Buffer1,x
-		lda #$d1
+		lda #$d5
 		sta VRAM_Buffer1+1,x
 		lda #1
 		sta VRAM_Buffer1+2,x
