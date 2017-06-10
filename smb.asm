@@ -856,6 +856,8 @@ SkipMainOper:  lda PPU_STATUS            ;reset flip-flop
 
 ;-------------------------------------------------------------------------------------
 
+DoRestart:
+	jsr Start
 PauseRoutine:
                lda OperMode           ;are we in victory mode?
                cmp #VictoryModeValue  ;if so, go ahead
@@ -870,6 +872,8 @@ ChkPauseTimer: lda GamePauseTimer     ;check if pause timer is still counting do
                dec GamePauseTimer     ;if so, decrement and leave
                rts
 ChkStart:      lda SavedJoypad1Bits   ;check to see if start is pressed
+               cmp #Select_Button
+               beq DoRestart
                and #Start_Button      ;on controller 1
                beq ClrPauseTimer
                lda GamePauseStatus    ;check to see if timer flag is set
@@ -1021,7 +1025,32 @@ GameMenuRoutine:
 		bne CantMove
 		cmp #Select_Button
 		beq ChangeSelection
+		cmp #Start_Button
+		beq LetsPlayMario
 		jmp SelectionInput
+LetsPlayMario:
+		lda WorldNumber
+		sta OffScr_WorldNumber
+		lda LevelNumber
+		sta AreaNumber
+		sta OffScr_AreaNumber
+		;
+		; Start it...
+		;
+		jsr LoadAreaPointer
+		inc Hidden1UpFlag
+		inc OffScr_Hidden1UpFlag
+		inc FetchNewGameTimerFlag
+		inc OperMode
+		lda #$00
+		sta OperMode_Task
+		ldx #$17
+		lda #$00
+InitScores:
+		sta ScoreAndCoinDisplay,x   ;clear player scores and coin displays
+		dex
+		bpl InitScores
+		rts
 CantMove:
 		lda SelectTimer
 		beq MenuDone
@@ -1030,12 +1059,52 @@ MenuDone:
 		lda #$00                    ;clear joypad bits for player 1
 		sta SavedJoypad1Bits
 		jsr DrawMushroomIcon
-		jsr DrawRuleInput
+		jsr DrawRuleCursor
+		lda #$fa
+		jsr UpdateNumber
 		rts
 
 ;-------------------------------------------------------------------------------------
 
 RuleInput:
+		ldx RuleIndex
+		cmp #Left_Dir
+		bne RTestRight
+		dex
+		jmp RuleHori
+RTestRight:
+		cmp #Right_Dir
+		bne RTestDown
+		inx
+RuleHori:
+		cpx #0
+		bpl RuleTestHigh
+		ldx #4
+RuleTestHigh:
+		cpx #5
+		bne SaveRuleIndex
+		ldx #0
+SaveRuleIndex:
+		stx RuleIndex
+		jmp RuleUpdated
+RTestDown:
+		cmp #Down_Dir
+		bne RTestUp
+		lda #$ff
+		jmp RUpdate
+RTestUp:
+		cmp #Up_Dir
+		bne RuleUpdated
+		lda #$01
+RUpdate:
+		ldx RuleIndex
+		sta DigitModifier,x
+		ldy #6
+		jsr DigitsMathRoutineForce  ;update the coin tally
+		jsr RedrawFrameNumber
+RuleUpdated:
+		lda #20
+		sta SelectTimer
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -1088,22 +1157,30 @@ WorldSelectionDone:
 
 ;-------------------------------------------------------------------------------------
 
-DrawRuleInput:
-		ldx VRAM_Buffer1_Offset
-		lda #$22
-		sta VRAM_Buffer1,x
-		lda #$d5
-		sta VRAM_Buffer1+1,x
-		lda #1
-		sta VRAM_Buffer1+2,x
-		lda #$ce
-		sta VRAM_Buffer1+3,x
-		lda #0
-		sta VRAM_Buffer1+4,x
-		txa
+RuleCursorData:
+	.db $22, $d1, $06, $24, $24, $24, $24, $24, $24, $00
+
+DrawRuleCursor:
+		ldy #9
+		lda VRAM_Buffer1_Offset
 		clc
-		adc #4
+		adc #9
 		sta VRAM_Buffer1_Offset
+		tax
+WriteRuleCursor:
+		lda RuleCursorData,y
+		sta VRAM_Buffer1,x
+		dex
+		dey
+		bpl WriteRuleCursor
+		lda VRAM_Buffer1_Offset
+		sec
+		sbc #6
+		adc RuleIndex
+		tax
+		dex
+		lda #$29
+		sta VRAM_Buffer1,x
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -1339,7 +1416,6 @@ LoadNumTiles: lda ScoreUpdateData,y        ;load point value here
               tax                          ;use as X offset, essentially the digit
               lda ScoreUpdateData,y        ;load again and this time
               and #%00001111               ;mask out the high nybble
-              sta DigitModifier,x          ;store as amount to add to the digit
               jsr AddToScore               ;update the score accordingly
 ChkTallEnemy: ldy Enemy_SprDataOffset,x    ;get OAM data offset for enemy object
               lda Enemy_ID,x               ;get enemy object identifier
@@ -1613,6 +1689,8 @@ MorePatch:
         sta $418
         lda #$0e
         sta $419
+        lda #$24
+        sta $41a
         rts
 
 
@@ -1666,8 +1744,6 @@ IncSubtask:  inc ScreenRoutineTask      ;move onto next task
 ;-------------------------------------------------------------------------------------
 
 WriteTopScore:
-               lda #$fa           ;run display routine to display top score on title
-               jsr UpdateNumber
 IncModeTask_B: inc OperMode_Task  ;move onto next mode
                rts
 
@@ -1695,13 +1771,11 @@ WorldLivesDisplay:
   .db $ff
 
 TwoPlayerTimeUp:
-  .db $21, $cd, $05, $16, $0a, $1b, $12, $18 ; "MARIO"
 OnePlayerTimeUp:
   .db $22, $0c, $07, $1d, $12, $16, $0e, $24, $1e, $19 ; "TIME UP"
   .db $ff
 
 TwoPlayerGameOver:
-  .db $21, $cd, $05, $16, $0a, $1b, $12, $18 ; "MARIO"
 OnePlayerGameOver:
   .db $22, $0b, $09, $10, $0a, $16, $0e, $24 ; "GAME OVER"
   .db $18, $1f, $0e, $1b
@@ -1719,8 +1793,6 @@ WarpZoneWelcome:
   .db $ff
 
 LuigiName:
-  .db $0f, $1b, $0a, $16, $0e    ; "LUIGI", no address or length
-
 WarpZoneNumbers:
   .db $04, $03, $02, $00         ; warp zone numbers, note spaces on middle
   .db $24, $05, $24, $00         ; zone, partly responsible for
@@ -2333,12 +2405,6 @@ MarioThanksMessage:
   .db $00
 
 LuigiThanksMessage:
-;"THANK YOU LUIGI!"
-  .db $25, $48, $10
-  .db $1d, $11, $0a, $17, $14, $24
-  .db $22, $18, $1e, $24
-  .db $15, $1e, $12, $10, $12, $2b
-  .db $00
 
 MushroomRetainerSaved:
 ;"BUT OUR PRINCESS IS IN"
@@ -2609,6 +2675,7 @@ ExitOutputN: rts
 DigitsMathRoutine:
             lda OperMode              ;check mode of operation
             cmp #TitleScreenModeValue
+DigitsMathRoutineForce:
             beq EraseDMods            ;if in title screen mode, branch to lock score
             ldx #$05
 AddModLoop: lda DigitModifier,x       ;load digit amount to increment
@@ -2653,8 +2720,6 @@ InitializeGame:
 ClrSndLoop:  sta SoundMemory,y     ;clear out memory used
              dey                   ;by the sound engines
              bpl ClrSndLoop
-             lda #$18              ;set demo timer
-             sta DemoTimer
              jsr LoadAreaPointer
 
 InitializeArea:
@@ -2710,6 +2775,8 @@ DoneInitArea:  lda #Silence             ;silence music
                lda #$01                 ;disable screen output
                sta DisableScreenFlag
                inc OperMode_Task        ;increment one of the modes
+               ldx #4
+               stx RuleIndex
                rts
 
 ;-------------------------------------------------------------------------------------
@@ -6592,11 +6659,7 @@ FlagpoleRoutine:
            sbc #$01                  ;subtract one plus borrow to move floatey number,
            sta FlagpoleFNum_Y_Pos    ;and store vertical coordinate here
 SkipScore: jmp FPGfx                 ;jump to skip ahead and draw flag and floatey number
-GiveFPScr: ldy FlagpoleScore         ;get score offset from earlier (when player touched flagpole)
-           lda FlagpoleScoreMods,y   ;get amount to award player points
-           ldx FlagpoleScoreDigits,y ;get digit with which to award points
-           sta DigitModifier,x       ;store in digit modifier
-           jsr AddToScore            ;do sub to award player points depending on height of collision
+GiveFPScr: jsr AddToScore            ;do sub to award player points depending on height of collision
            lda #$05
            sta GameEngineSubroutine  ;set to run end-of-level subroutine on next frame
 FPGfx:     jsr GetEnemyOffscreenBits ;get offscreen information
@@ -6977,8 +7040,6 @@ JCoinC: lda #$fb
         sta Misc_State,y       ;set state for misc object
         sta Square2SoundQueue  ;load coin grab sound
         stx ObjectOffset       ;store current control bit as misc object offset 
-        jsr GiveOneCoin        ;update coin tally on the screen and coin amount variable
-        inc CoinTallyFor1Ups   ;increment coin tally used to activate 1-up block flag
         rts
 
 FindEmptyMiscSlot:
@@ -7062,17 +7123,9 @@ FRAME_NUMBER_OFFSET = $17
 FRAMES_REMAIN_OFFSET = $0e
 DO_REDRAW_REMAINING = $07e3
 
-GiveOneCoin:
 RedrawFrameNumber:
 CoinPoints:
 AddToScore:
-	lda #0
-	sta DigitModifier
-	sta DigitModifier+1
-	sta DigitModifier+2
-	sta DigitModifier+3
-	sta DigitModifier+4
-	sta DigitModifier+5
 GetSBNybbles:
       lda #STATUS_BAR_OFFSET
 UpdateNumber:
@@ -7407,8 +7460,6 @@ BrickShatter:
       jsr SpawnBrickChunks   ;create brick chunk objects
       lda #$fe
       sta Player_Y_Speed     ;set vertical speed for player
-      lda #$05
-      sta DigitModifier+5    ;set digit modifier to give player 50 points
       jsr AddToScore         ;do sub to update the score
       ldx SprDataOffset_Ctrl ;load control bit and leave
       rts
@@ -12139,8 +12190,7 @@ AreaChangeTimerData:
 
 HandleCoinMetatile:
       jsr ErACM             ;do sub to erase coin metatile from block buffer
-      inc CoinTallyFor1Ups  ;increment coin tally used for 1-up blocks
-      jmp GiveOneCoin       ;update coin amount and tally on the screen
+      rts
 
 HandleAxeMetatile:
        lda #$00
