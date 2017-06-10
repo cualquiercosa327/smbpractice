@@ -5,7 +5,7 @@ Super Mario Bros. practice ROM for advanced players.
 ## Features
 	* Measure what frame rule you are currently on.
 	* See what frame you are on (low two digits)
-	* Upon exiting a screen (Pipe, vine, complete level), see how many frames are left on the rule.
+	* Upon exiting a screen (Pipe, vine, complete level), see how many frames are left on the frame rule.
 	* Select what level and frame rule to start on
 
 # Build Instructions
