@@ -3,10 +3,31 @@
 Super Mario Bros. practice ROM for advanced players.
 
 ## Features
-	* Measure what frame rule you are currently on.
-	* See what frame you are on (low two digits)
-	* Upon exiting a screen (Pipe, vine, complete level), see how many frames are left on the frame rule.
-	* Select what level and frame rule to start on
+	* Detailed performance metrics, frame rule, frame and frames left on frame-rule.
+	* Select what level and frame rule to start on.
+	* Automatic "perfect-frame-rule" selection for each level.
+	* Infinite lives.
+
+## Controls
+### Title screen
+	* Use Select to move up and down in the menu.
+	* Use Left and Right change world/level.
+	* To change what frame rule to start from, use Left and Right to select digit, and Up and Down to change it.
+	* Press Start as normal to start the game.
+### In-game
+	* Press Select to get back to title screen.
+
+## Display
+From left to right, the top status bar displays:
+	* Current frame-rule.
+	* Lowest 2 digits of current frame number.
+	* Number of frames left on frame-rule when beating area.
+	* Standard game timer.
+
+The values are not updated continuously, as it was pretty hard to make any sense of it. Instead, they are updated at certain events. All values are updated when you exit an area, by a pipe, a vine or by completing the level.
+
+In addition, the current frame and frame-rule are also updated when you would normally get score.
+
 
 # Build Instructions
 

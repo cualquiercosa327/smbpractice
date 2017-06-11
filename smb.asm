@@ -806,21 +806,7 @@ NoDecTimers:   inc FrameCounter          ;increment frame counter
                jmp NotPaused
 PauseSkip:     jsr RedrawAll
 NotPaused:
-               ldx #$00
-               ldy #$07
-               lda PseudoRandomBitReg    ;get first memory location of LSFR bytes
-               and #%00000010            ;mask out all but d1
-               sta $00                   ;save here
-               lda PseudoRandomBitReg+1  ;get second memory location
-               and #%00000010            ;mask out all but d1
-               eor $00                   ;perform exclusive-OR on d1 from first and second bytes
-               clc                       ;if neither or both are set, carry will be clear
-               beq RotPRandomBit
-               sec                       ;if one or the other is set, carry will be set
-RotPRandomBit: ror PseudoRandomBitReg,x  ;rotate carry into d7, and rotate last bit into carry
-               inx                       ;increment to next byte
-               dey                       ;decrement for loop
-               bne RotPRandomBit
+               jsr AdvanceRandom
                lda Sprite0HitDetectFlag  ;check for flag here
                beq SkipSprite0
 Sprite0Clr:    lda PPU_STATUS            ;wait for sprite 0 flag to clear, which will
@@ -853,6 +839,26 @@ SkipMainOper:  lda PPU_STATUS            ;reset flip-flop
                ora #%10000000            ;reactivate NMIs
                sta PPU_CTRL_REG1
                rti                       ;we are done until the next frame!
+
+;-------------------------------------------------------------------------------------
+AdvanceRandom:
+		ldx #$00
+		ldy #$07
+		lda PseudoRandomBitReg    ;get first memory location of LSFR bytes
+		and #%00000010            ;mask out all but d1
+		sta $00                   ;save here
+		lda PseudoRandomBitReg+1  ;get second memory location
+		and #%00000010            ;mask out all but d1
+		eor $00                   ;perform exclusive-OR on d1 from first and second bytes
+		clc                       ;if neither or both are set, carry will be clear
+		beq RotPRandomBit
+		sec                       ;if one or the other is set, carry will be set
+RotPRandomBit:
+		ror PseudoRandomBitReg,x  ;rotate carry into d7, and rotate last bit into carry
+		inx                       ;increment to next byte
+		dey                       ;decrement for loop
+		bne RotPRandomBit
+		rts
 
 ;-------------------------------------------------------------------------------------
 
@@ -1029,6 +1035,45 @@ GameMenuRoutine:
 		beq LetsPlayMario
 		jmp SelectionInput
 LetsPlayMario:
+		;
+		; If Rule is 0, use title Rule
+		; 
+		lda TopScoreDisplay+2
+		ora TopScoreDisplay+3
+		ora TopScoreDisplay+4
+		ora TopScoreDisplay+5
+		beq DontResetRandom
+		;
+		; Advance to correct frame rule
+		;
+		ldx #6
+		lda #0
+		sta FrameCounter ; Is this a good idea?
+ResetRandom:
+		sta PseudoRandomBitReg+1,x
+		dex
+		bpl ResetRandom
+		lda #$a5                     ;set warm boot flag
+		sta PseudoRandomBitReg       ;set seed for pseudorandom register
+AdvanceFurther:
+		lda #$ff
+		sta DigitModifier+4
+		ldy #6
+		jsr DigitsMathRoutineForce
+		ldx #20
+		stx $0
+DoFrameRule:
+		jsr AdvanceRandom
+		inc FrameCounter
+		dec $0
+		bpl DoFrameRule
+		lda TopScoreDisplay+2
+		ora TopScoreDisplay+3
+		ora TopScoreDisplay+4
+		ora TopScoreDisplay+5
+		bne AdvanceFurther
+
+DontResetRandom:
 		lda WorldNumber
 		sta OffScr_WorldNumber
 		lda LevelNumber
@@ -1056,12 +1101,17 @@ CantMove:
 		beq MenuDone
 		dec SelectTimer
 MenuDone:
-		lda #$00                    ;clear joypad bits for player 1
-		sta SavedJoypad1Bits
 		jsr DrawMushroomIcon
 		jsr DrawRuleCursor
 		lda #$fa
 		jsr UpdateNumber
+		lda #$24
+		ldx VRAM_Buffer1_Offset
+		sta VRAM_Buffer1-5,x
+		lda #$00
+		sta TopScoreDisplay+1
+		sta SavedJoypad1Bits
+		jsr RedrawFrameNumber
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -1077,13 +1127,13 @@ RTestRight:
 		bne RTestDown
 		inx
 RuleHori:
-		cpx #0
+		cpx #1
 		bpl RuleTestHigh
 		ldx #4
 RuleTestHigh:
 		cpx #5
 		bne SaveRuleIndex
-		ldx #0
+		ldx #1
 SaveRuleIndex:
 		stx RuleIndex
 		jmp RuleUpdated
@@ -1100,7 +1150,7 @@ RUpdate:
 		ldx RuleIndex
 		sta DigitModifier,x
 		ldy #6
-		jsr DigitsMathRoutineForce  ;update the coin tally
+		jsr DigitsMathRoutineForce
 		jsr RedrawFrameNumber
 RuleUpdated:
 		lda #20
@@ -1405,7 +1455,6 @@ DecNumTimer:  dec FloateyNum_Timer,x       ;decrement value here
               bne ChkTallEnemy
               cpy #$0b                     ;check offset for $0b
               bne LoadNumTiles             ;branch ahead if not found
-              inc NumberofLives            ;give player one extra life (1-up)
               lda #Sfx_ExtraLife
               sta Square2SoundQueue        ;and play the 1-up sound
 LoadNumTiles: lda ScoreUpdateData,y        ;load point value here
@@ -1663,37 +1712,6 @@ OutputCol: lda #$06                  ;set vram buffer to output rendered column 
            sta VRAM_Buffer_AddrCtrl  ;on next NMI
            rts
 
-;-----------------
-
-PatchTitle:
-        ldx #4
-NextPatch:
-        lda WorldText, x
-        sta $3f8, x
-        lda LevelText, x
-        sta $408, x
-        dex
-        bpl NextPatch
-        ldx #5
-MorePatch:
-        lda #$24
-        sta $3fd, x
-        sta $40d, x
-        dex
-        bpl MorePatch
-        lda #$1b
-        sta $416
-        lda #$1e
-        sta $417
-        lda #$15
-        sta $418
-        lda #$0e
-        sta $419
-        lda #$24
-        sta $41a
-        rts
-
-
 ;-------------------------------------------------------------------------------------
 
 ;$00 - vram buffer address table low
@@ -1721,7 +1739,6 @@ ChkHiByte:  lda $01                      ;check high byte?
             bne OutputTScr               ;if not, loop back and do another
             cpy #$3a                     ;check if offset points past end of data
             bcc OutputTScr               ;if not, loop back and do another
-            jsr PatchTitle
             lda #1
             sta $406
             lda #$05                     ;set buffer transfer control to $0300,
@@ -1751,8 +1768,8 @@ IncModeTask_B: inc OperMode_Task  ;move onto next mode
 
 GameText:
 TopStatusBarLine:
-  .db $20, $42, $0e, $1b, $1e, $15, $0e ; "MARIO"
-  .db $24, $24, $24, $24, $24
+  .db $20, $43, $0d, $1b, $1e, $15, $0e ; "MARIO"
+  .db $24, $24, $24, $24
   .db $0f, $1b, $0a, $16, $0e
   .db $20, $52, $0b, $15, $0e, $0f, $1d, $24 ; "WORLD  TIME"
   .db $24, $24, $1d, $12, $16, $0e
@@ -1814,7 +1831,9 @@ WriteGameText:
                cpy #$08                 ;if set to do time-up or game over,
                bcc Chk2Players          ;branch to check players
                ldy #$08                 ;otherwise warp zone, therefore set offset
-Chk2Players:   iny                      ;otherwise increment offset by one to not print name
+Chk2Players:   lda #0                   ;check for number of players
+               bne LdGameText           ;if there are two, use current offset to also print name
+               iny                      ;otherwise increment offset by one to not print name
 LdGameText:    ldx GameTextOffsets,y    ;get offset to message we want to print
                ldy #$00
 GameTextLoop:  lda GameText,x           ;load message data
@@ -1831,22 +1850,16 @@ EndGameText:   lda #$00                 ;put null terminator at end
                cmp #$04                 ;are we printing warp zone?
                bcs PrintWarpZoneNumbers
                dex                      ;are we printing the world/lives display?
-               rts
-               lda NumberofLives        ;otherwise, check number of lives
-               clc                      ;and increment by one for display
-               adc #$01
-               cmp #10                  ;more than 9 lives?
-               bcc PutLives
-               sbc #10                  ;if so, subtract 10 and put a crown tile
-               ldy #$9f                 ;next to the difference...strange things happen if
-               sty VRAM_Buffer1+7       ;the number of lives exceeds 19
-PutLives:      sta VRAM_Buffer1+8
+               bne WriteTextDone      ;if not, branch to check player's name
+               lda #$ce
+PutLives:      sta VRAM_Buffer1+7
                ldy WorldNumber          ;write world and level numbers (incremented for display)
                iny                      ;to the buffer in the spaces surrounding the dash
                sty VRAM_Buffer1+19
                ldy LevelNumber
                iny
                sty VRAM_Buffer1+21      ;we're done here
+WriteTextDone:
                rts
 
 PrintWarpZoneNumbers:
@@ -2450,9 +2463,6 @@ WorldText:
   .db $20, $18, $1b, $15, $0d
   .db $00
 
-LevelText:
-  .db $15, $0e, $1f, $0e, $15
-
 ;-------------------------------------------------------------------------------------
 ;$04 - address low to jump address
 ;$05 - address high to jump address
@@ -2673,8 +2683,6 @@ ExitOutputN: rts
 ;-------------------------------------------------------------------------------------
 
 DigitsMathRoutine:
-            lda OperMode              ;check mode of operation
-            cmp #TitleScreenModeValue
 DigitsMathRoutineForce:
             beq EraseDMods            ;if in title screen mode, branch to lock score
             ldx #$05
@@ -2977,13 +2985,6 @@ PlayerLoseLife:
              sta Sprite0HitDetectFlag
              lda #Silence             ;silence music
              sta EventMusicQueue
-             dec NumberofLives        ;take one life from player
-             bpl StillInGame          ;if player still has lives, branch
-             lda #$00
-             sta OperMode_Task        ;initialize mode task,
-             lda #GameOverModeValue   ;switch to game over mode
-             sta OperMode             ;and leave
-             rts
 StillInGame: lda WorldNumber          ;multiply world number by 2 and use
              asl                      ;as offset
              tax
