@@ -1035,50 +1035,24 @@ GameMenuRoutine:
 		beq LetsPlayMario
 		jmp SelectionInput
 LetsPlayMario:
-		;
-		; If Rule is 0, use title Rule
-		; 
-		lda TopScoreDisplay+2
-		ora TopScoreDisplay+3
-		ora TopScoreDisplay+4
-		ora TopScoreDisplay+5
-		beq DontResetRandom
-		;
-		; Advance to correct frame rule
-		;
-		ldx #6
-		lda #0
-		sta FrameCounter ; Is this a good idea?
-ResetRandom:
-		sta PseudoRandomBitReg+1,x
-		dex
-		bpl ResetRandom
-		lda #$a5                     ;set warm boot flag
-		sta PseudoRandomBitReg       ;set seed for pseudorandom register
-AdvanceFurther:
-		lda #$ff
-		sta DigitModifier+4
-		ldy #6
-		jsr DigitsMathRoutineForce
-		ldx #20
-		stx $0
-DoFrameRule:
-		jsr AdvanceRandom
-		inc FrameCounter
-		dec $0
-		bpl DoFrameRule
-		lda TopScoreDisplay+2
-		ora TopScoreDisplay+3
-		ora TopScoreDisplay+4
-		ora TopScoreDisplay+5
-		bne AdvanceFurther
-
-DontResetRandom:
-		lda WorldNumber
-		sta OffScr_WorldNumber
-		lda LevelNumber
-		sta AreaNumber
-		sta OffScr_AreaNumber
+		ldx LevelNumber
+		ldy WorldNumber
+		sty OffScr_WorldNumber
+		beq BigWorld
+		dey
+		beq BigWorld
+		dey
+		dey
+		beq BigWorld
+		cpy #3
+		bne SaveAreaNmber
+BigWorld:
+		cpx #2
+		bmi SaveAreaNmber
+		inx
+SaveAreaNmber:
+		stx AreaNumber
+		stx OffScr_AreaNumber
 		;
 		; Start it...
 		;
@@ -1264,6 +1238,48 @@ IsLevelSelected:
 RuleSelected:
               sta VRAM_Buffer1+8,x
               rts
+
+;-------------------------------------------------------------------------------------
+
+AdvanceToRule:
+		; If Rule is 0, use title Rule
+		; 
+		lda TopScoreDisplay+2
+		ora TopScoreDisplay+3
+		ora TopScoreDisplay+4
+		ora TopScoreDisplay+5
+		beq DontResetRandom
+		;
+		; Advance to correct frame rule
+		;
+		ldx #6
+		lda #0
+		sta FrameCounter ; Is this a good idea?
+ResetRandom:
+		sta PseudoRandomBitReg+1,x
+		dex
+		bpl ResetRandom
+		lda #$a5                     ;set warm boot flag
+		sta PseudoRandomBitReg       ;set seed for pseudorandom register
+AdvanceFurther:
+		lda #$ff
+		sta DigitModifier+4
+		ldy #6
+		jsr DigitsMathRoutineForce
+		ldx #20
+		stx $0
+DoFrameRule:
+		jsr AdvanceRandom
+		inc FrameCounter
+		dec $0
+		bpl DoFrameRule
+		lda TopScoreDisplay+2
+		ora TopScoreDisplay+3
+		ora TopScoreDisplay+4
+		ora TopScoreDisplay+5
+		bne AdvanceFurther
+DontResetRandom:
+		rts
 
 ;-------------------------------------------------------------------------------------
 
