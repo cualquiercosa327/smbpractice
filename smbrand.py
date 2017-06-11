@@ -18,26 +18,17 @@ def random_advance(seed):
 
 	return seed
 
-back = [ 0x8C, 0xC3, 0xDA, 0x5D, 0xE9, 0x52, 0x80 ]
+find = [ [ 0x6A, 0x18, 0xCC, 0xFD, 0x64, 0x9E, 0x57 ] ]
 seed = random_init()
 total = 0
 
-for i in range(0, 21):
-	print(' '.join([ '%02X' % it for it in seed ]))
-	seed = random_advance(seed)
-
-for i in range(0, 21):
-	print(' '.join([ '%02X' % it for it in seed ]))
-	seed = random_advance(seed)
-
-seed[0] = 0xA5
-print('------------------------------')
-
-for i in range(0, 21):
-	print(' '.join([ '%02X' % it for it in seed ]))
-	seed = random_advance(seed)
-
-for i in range(0, 21):
-	print(' '.join([ '%02X' % it for it in seed ]))
-	seed = random_advance(seed)
-
+while True:
+	print('Frame rule: %d' % (total))
+	for i in range(0, 21):
+		seed = random_advance(seed)
+		print(' '.join([ '%02X' % it for it in seed ]))
+		if seed in find:
+			print('[%d] Found block!' % (i))
+			print('#' * 60)
+			sys.exit(0)
+	total += 1

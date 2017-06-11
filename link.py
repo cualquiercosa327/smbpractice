@@ -6,12 +6,11 @@ def patch_at(c, off, v):
 
 def patch_chr(c):
 	c = bytearray(c)
-        github = [ 0x10, 0x12, 0x1d, 0x11, 0x1e, 0x0b, 0x-29, 0x0c, 0x18, 0x16 ]
+
 	world = bytearray([ 0x20, 0x18, 0x1b, 0x15, 0x0d ] + ([ 0x24 ] * 6))
 	level = bytearray([ 0x15, 0x0e, 0x1f, 0x0e, 0x15 ] + ([ 0x24 ] * 6))
 	rule = bytearray([ 0x1b, 0x1e, 0x15, 0x0e, 0x24 ])
 
-        patch_at(c, 0x1f70, github)
 	patch_at(c, 0x1fb8, world)
 	patch_at(c, 0x1fc8, level)
 	patch_at(c, 0x1fd6, rule)
@@ -35,6 +34,7 @@ pad = bytearray([ 0xEA ] * (0x8000 - (len(prg) + len(interrupts))))
 
 print('Adding %d bytes of padding before interrupts...' % (len(pad)))
 
+open('smb-hack.chr', 'wb').write(gfx)
 open('smb-hack.nes', 'wb').write(ines + prg + pad + interrupts + gfx)
 
 

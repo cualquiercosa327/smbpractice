@@ -683,16 +683,6 @@ VBlank1:     lda PPU_STATUS               ;wait two frames
 VBlank2:     lda PPU_STATUS
              bpl VBlank2
              ldy #ColdBootOffset          ;load default cold boot pointer
-             ldx #$05                     ;this is where we check for a warm boot
-WBootCheck:  lda TopScoreDisplay,x        ;check each score digit in the top score
-             cmp #10                      ;to see if we have a valid digit
-             bcs ColdBoot                 ;if not, give up and proceed with cold boot
-             dex                      
-             bpl WBootCheck
-             lda WarmBootValidation       ;second checkpoint, check to see if 
-             cmp #$a5                     ;another location has a specific value
-             bne ColdBoot   
-             ldy #WarmBootOffset          ;if passed both, load warm boot pointer
 ColdBoot:    jsr InitializeMemory         ;clear memory using pointer in Y
              sta SND_DELTA_REG+1          ;reset delta counter load register
              sta OperMode                 ;reset primary mode of operation
@@ -951,7 +941,7 @@ OperModeExecutionTree:
       .dw TitleScreenMode
       .dw GameMode
       .dw VictoryMode
-      .dw GameOverMode
+      ; .dw GameOverMode
 
 ;-------------------------------------------------------------------------------------
 
@@ -1063,12 +1053,6 @@ SaveAreaNmber:
 		inc OperMode
 		lda #$00
 		sta OperMode_Task
-		ldx #$17
-		lda #$00
-InitScores:
-		sta ScoreAndCoinDisplay,x   ;clear player scores and coin displays
-		dex
-		bpl InitScores
 		rts
 CantMove:
 		lda SelectTimer
@@ -1241,6 +1225,9 @@ RuleSelected:
 
 ;-------------------------------------------------------------------------------------
 
+InitalizeAreaContiunue:
+		jmp InitializeAreaStable
+
 AdvanceToRule:
 		; If Rule is 0, use title Rule
 		; 
@@ -1248,13 +1235,31 @@ AdvanceToRule:
 		ora TopScoreDisplay+3
 		ora TopScoreDisplay+4
 		ora TopScoreDisplay+5
-		beq DontResetRandom
+		beq InitalizeAreaContiunue
+		lda IntervalTimerControl
+		cmp #$13
+		beq BeginRuleAdvance
+		;
+		; Wait for interval timer to reach $13
+		;
+		rts
+BeginRuleAdvance:
+		;
+		; Copy to current rule
+		;
+		ldx #5
+KeepCopyRule:
+		lda TopScoreDisplay+1,x
+		sta DisplayDigits+RULE_COUNT_OFFSET-4, x
+		dex
+		bne KeepCopyRule
+		lda #0
+		sta DisplayDigits+RULE_COUNT_OFFSET-5
 		;
 		; Advance to correct frame rule
 		;
 		ldx #6
 		lda #0
-		sta FrameCounter ; Is this a good idea?
 ResetRandom:
 		sta PseudoRandomBitReg+1,x
 		dex
@@ -1266,20 +1271,36 @@ AdvanceFurther:
 		sta DigitModifier+4
 		ldy #6
 		jsr DigitsMathRoutineForce
-		ldx #20
-		stx $0
-DoFrameRule:
-		jsr AdvanceRandom
-		inc FrameCounter
-		dec $0
-		bpl DoFrameRule
 		lda TopScoreDisplay+2
 		ora TopScoreDisplay+3
 		ora TopScoreDisplay+4
 		ora TopScoreDisplay+5
-		bne AdvanceFurther
-DontResetRandom:
+		beq RuleContinue
+
+		ldx #20
+		stx $1
+DoFrameRule:
+		jsr AdvanceRandom
+		dec $1
+		bpl DoFrameRule
+		jmp AdvanceFurther
+
+RuleContinue:
+		;
+		; Advance to correct place within this rule
+		;
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		;
+		; Castle levels end on IntervalTimerControl $13,
+		; normal levels on $12. Either consume one more frame,
+		; or load the area immediately.
+		;
+		lda LevelNumber
+		beq FirstLevel 
 		rts
+FirstLevel:
+		jmp InitalizeAreaContiunue
 
 ;-------------------------------------------------------------------------------------
 
@@ -1422,11 +1443,10 @@ EndChkBButton: lda SavedJoypad1Bits
                ora SavedJoypad2Bits       ;check to see if B button was pressed on
                and #B_Button              ;either controller
                beq EndExitTwo             ;branch to leave if not
-               lda #$01                   ;otherwise set world selection flag
-               sta WorldSelectEnableFlag
-               lda #$ff                   ;remove onscreen player's lives
-               sta NumberofLives
-               jsr TerminateGame          ;do sub to continue other player or end game
+               ;
+               ; TODO XXX DOES THIS IDIOTIC CRAP WORK?
+               ;
+               jsr Start ; 
 EndExitTwo:    rts                        ;leave
 
 ;-------------------------------------------------------------------------------------
@@ -1689,8 +1709,6 @@ NoTimeUp: inc ScreenRoutineTask     ;increment control task 2 tasks forward
 DisplayIntermediate:
                lda OperMode                 ;check primary mode of operation
                beq NoInter                  ;if in title screen mode, skip this
-               cmp #GameOverModeValue       ;are we in game over mode?
-               beq GameOverInter            ;if so, proceed to display game over screen
                lda AltEntranceControl       ;otherwise check for mode of alternate entry
                bne NoInter                  ;and branch if found
                ldy AreaType                 ;check if we are on castle level
@@ -1705,11 +1723,6 @@ OutputInter:   jsr WriteGameText
                lda #$00
                sta DisableScreenFlag        ;reenable screen output
                rts
-GameOverInter: lda #$12                     ;set screen timer
-               sta ScreenTimer
-               lda #$03                     ;output game over screen to buffer
-               jsr WriteGameText
-               jmp IncModeTask_B
 NoInter:       lda #$08                     ;set for specific task and leave
                sta ScreenRoutineTask
                rts
@@ -1810,9 +1823,6 @@ OnePlayerTimeUp:
 
 TwoPlayerGameOver:
 OnePlayerGameOver:
-  .db $22, $0b, $09, $10, $0a, $16, $0e, $24 ; "GAME OVER"
-  .db $18, $1f, $0e, $1b
-  .db $ff
 
 WarpZoneWelcome:
   .db $25, $84, $15, $20, $0e, $15, $0c, $18, $16 ; "WELCOME TO WARP ZONE!"
@@ -2747,6 +2757,8 @@ ClrSndLoop:  sta SoundMemory,y     ;clear out memory used
              jsr LoadAreaPointer
 
 InitializeArea:
+               jmp AdvanceToRule
+InitializeAreaStable:
                ldy #$4b                 ;clear all memory again, only as far as $074b
                jsr InitializeMemory     ;this is only necessary if branching from
                ldx #$21
@@ -3023,56 +3035,6 @@ MaskHPNyb:   and #%00001111           ;mask out all but lower nybble
              bcc SetHalfway           ;otherwise player must start at the
              lda #$00                 ;beginning of the level
 SetHalfway:  sta HalfwayPage          ;store as halfway page for player
-             jsr TransposePlayers     ;switch players around if 2-player game
-             jmp ContinueGame         ;continue the game
-
-;-------------------------------------------------------------------------------------
-
-GameOverMode:
-      lda OperMode_Task
-      jsr JumpEngine
-      
-      .dw SetupGameOver
-      .dw ScreenRoutines
-      .dw RunGameOver
-
-;-------------------------------------------------------------------------------------
-
-SetupGameOver:
-      lda #$00                  ;reset screen routine task control for title screen, game,
-      sta ScreenRoutineTask     ;and game over modes
-      sta Sprite0HitDetectFlag  ;disable sprite 0 check
-      lda #GameOverMusic
-      sta EventMusicQueue       ;put game over music in secondary queue
-      inc DisableScreenFlag     ;disable screen output
-      inc OperMode_Task         ;set secondary mode to 1
-      rts
-
-;-------------------------------------------------------------------------------------
-
-RunGameOver:
-      lda #$00              ;reenable screen
-      sta DisableScreenFlag
-      lda SavedJoypad1Bits  ;check controller for start pressed
-      and #Start_Button
-      bne TerminateGame
-      lda ScreenTimer       ;if not pressed, wait for
-      bne GameIsOn          ;screen timer to expire
-TerminateGame:
-      lda #Silence          ;silence music
-      sta EventMusicQueue
-      jsr TransposePlayers  ;check if other player can keep
-      bcc ContinueGame      ;going, and do so if possible
-      lda WorldNumber       ;otherwise put world number of current
-      sta ContinueWorld     ;player into secret continue function variable
-      lda #$00
-      asl                   ;residual ASL instruction
-      sta OperMode_Task     ;reset all modes to title screen and
-      sta ScreenTimer       ;leave
-      sta OperMode
-      rts
-
-ContinueGame:
            jsr LoadAreaPointer       ;update level pointer with
            lda #$01                  ;actual world and area numbers, then
            sta PlayerSize            ;reset player's size, status, and
@@ -3085,10 +3047,6 @@ ContinueGame:
            lda #$01                  ;if in game over mode, switch back to
            sta OperMode              ;game mode, because game is still on
 GameIsOn:  rts
-
-TransposePlayers: ; TODO This can be removed complete if we need more bytes
-           sec ;set carry flag by default to end game
-           rts
 
 ;-------------------------------------------------------------------------------------
 
@@ -7057,7 +7015,7 @@ JCoinC: lda #$fb
         sta Misc_State,y       ;set state for misc object
         sta Square2SoundQueue  ;load coin grab sound
         stx ObjectOffset       ;store current control bit as misc object offset 
-        rts
+        jmp RedrawFrameNumber
 
 FindEmptyMiscSlot:
            ldy #$08                ;start at end of misc objects buffer
@@ -12207,7 +12165,7 @@ AreaChangeTimerData:
 
 HandleCoinMetatile:
       jsr ErACM             ;do sub to erase coin metatile from block buffer
-      rts
+      jmp RedrawFrameNumber
 
 HandleAxeMetatile:
        lda #$00
@@ -16050,10 +16008,10 @@ LoadWaterEventMusEnvData:
 
 MusicHeaderData:
       .db DeathMusHdr-MHD           ;event music
-      .db GameOverMusHdr-MHD
+      .db DeathMusHdr-MHD
       .db VictoryMusHdr-MHD
       .db WinCastleMusHdr-MHD
-      .db GameOverMusHdr-MHD
+      .db DeathMusHdr-MHD
       .db EndOfLevelMusHdr-MHD
       .db TimeRunningOutHdr-MHD
       .db SilenceHdr-MHD
@@ -16094,7 +16052,6 @@ UndergroundMusHdr:    .db $18, <UndergroundMusData, >UndergroundMusData, $00, $0
 SilenceHdr:           .db $08, <SilenceData, >SilenceData, $00
 CastleMusHdr:         .db $00, <CastleMusData, >CastleMusData, $93, $62
 VictoryMusHdr:        .db $10, <VictoryMusData, >VictoryMusData, $24, $14
-GameOverMusHdr:       .db $18, <GameOverMusData, >GameOverMusData, $1e, $14
 WaterMusHdr:          .db $08, <WaterMusData, >WaterMusData, $a0, $70, $68
 WinCastleMusHdr:      .db $08, <EndOfCastleMusData, >EndOfCastleMusData, $4c, $24
 GroundLevelPart1Hdr:  .db $18, <GroundM_P1Data, >GroundM_P1Data, $2d, $1c, $b8
@@ -16275,15 +16232,6 @@ CastleMusData:
 
       .db $84, $1a, $83, $18, $20, $84, $1e, $83, $1c, $28
       .db $26, $1c, $1a, $1c
-
-GameOverMusData:
-      .db $82, $2c, $04, $04, $22, $04, $04, $84, $1c, $87
-      .db $26, $2a, $26, $84, $24, $28, $24, $80, $22, $00
-
-      .db $9c, $05, $94, $05, $0d, $9f, $1e, $9c, $98, $9d
-
-      .db $82, $22, $04, $04, $1c, $04, $04, $84, $14
-      .db $86, $1e, $80, $16, $80, $14
 
 TimeRunOutMusData:
       .db $81, $1c, $30, $04, $30, $30, $04, $1e, $32, $04, $32, $32
