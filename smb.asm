@@ -1026,6 +1026,15 @@ GameMenuRoutine:
 		beq LetsPlayMario
 		jmp SelectionInput
 LetsPlayMario:
+		lda LevelNumber
+		ora WorldNumber
+		bne NotFirstLevel
+		ldx #5
+EraseStartRule:
+		sta TopScoreDisplay+1,x
+		dex
+		bne EraseStartRule
+NotFirstLevel:
 		ldx LevelNumber
 		ldy WorldNumber
 		sty OffScr_WorldNumber
@@ -1107,10 +1116,17 @@ RTestUp:
 		lda #$01
 RUpdate:
 		ldx RuleIndex
-		sta DigitModifier,x
-		ldy #6
-		jsr DigitsMathRoutineForce
-		jsr RedrawFrameNumber
+		clc
+		adc TopScoreDisplay+1,x
+		bmi IsNegative
+		cmp #10
+		bmi SaveRuleDigit
+		lda #0
+		jmp SaveRuleDigit
+IsNegative:
+		lda #9
+SaveRuleDigit:
+		sta TopScoreDisplay+1,x
 RuleUpdated:
 		lda #20
 		sta SelectTimer
@@ -1785,8 +1801,6 @@ ChkHiByte:  lda $01                      ;check high byte?
             bne OutputTScr               ;if not, loop back and do another
             cpy #$3a                     ;check if offset points past end of data
             bcc OutputTScr               ;if not, loop back and do another
-            lda #1
-            sta $406
             lda #$05                     ;set buffer transfer control to $0300,
             jmp SetVRAMAddr_B            ;increment task and exit
 
