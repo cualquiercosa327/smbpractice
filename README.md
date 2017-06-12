@@ -5,7 +5,7 @@ Super Mario Bros. practice ROM for advanced players.
 ## Features
 	* Detailed performance metrics; frame rule, frame and frames left on frame-rule.
 	* Select what level and frame rule to start on.
-	* Predefined "perfect-frame-rule" selection for each level.
+	* Predefined "perfect-frame-rule" for each level.
 	* Infinite lives.
 
 ## Controls
