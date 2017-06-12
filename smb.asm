@@ -853,6 +853,89 @@ RotPRandomBit:
 
 ;-------------------------------------------------------------------------------------
 
+EraseStartRule:
+		ldx #5
+EraseStartRuleLoop:
+		sta TopScoreDisplay+1,x
+		dex
+		bne EraseStartRuleLoop
+		rts
+
+WarplessRules:
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw $1234 ; 1-1
+	.dw 0 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw $0101 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+	.dw 0 ; 1-1
+
+ByteToRule:
+	pha
+	and #$0f
+	sta TopScoreDisplay+3,y
+	pla
+	and #$f0
+	ror
+	ror
+	ror
+	ror
+	sta TopScoreDisplay+2,y
+	rts
+
+SetPerfectLevelRule:
+	lda WorldNumber
+	asl
+	asl
+	asl
+	sta $0
+	lda LevelNumber
+	asl
+	clc
+	adc $0
+	tax
+	lda WarplessRules, x
+	ldy #2
+	jsr ByteToRule
+	inx
+	ldy #0
+	lda WarplessRules, x
+	jsr ByteToRule
+	rts
+;-------
+
 DoRestart:
 	jsr Start
 PauseRoutine:
@@ -1022,18 +1105,21 @@ GameMenuRoutine:
 		bne CantMove
 		cmp #Select_Button
 		beq ChangeSelection
-		cmp #Start_Button
-		beq LetsPlayMario
+		and #Start_Button
+		bne LetsPlayMario
+		lda SavedJoypad1Bits
 		jmp SelectionInput
 LetsPlayMario:
+		lda SavedJoypad1Bits
+		and #B_Button
+		beq NoLuigi
+		lda #1
+		sta CurrentPlayer
+NoLuigi:
 		lda LevelNumber
 		ora WorldNumber
 		bne NotFirstLevel
-		ldx #5
-EraseStartRule:
-		sta TopScoreDisplay+1,x
-		dex
-		bne EraseStartRule
+		jsr EraseStartRule
 NotFirstLevel:
 		ldx LevelNumber
 		ldy WorldNumber
@@ -1177,6 +1263,7 @@ RedrawIt:
 		jsr DrawSelectedNumber
 		lda #20
 		sta SelectTimer
+		jsr SetPerfectLevelRule
 WorldSelectionDone:
 		rts
 
@@ -2467,25 +2554,14 @@ BowserPaletteData:
   .db $00
 
 MarioThanksMessage:
-;"THANK YOU MARIO!"
-  .db $25, $48, $10
-  .db $1d, $11, $0a, $17, $14, $24
-  .db $22, $18, $1e, $24
-  .db $16, $0a, $1b, $12, $18, $2b
-  .db $00
-
 LuigiThanksMessage:
-
 MushroomRetainerSaved:
 ;"BUT OUR PRINCESS IS IN"
-  .db $25, $c5, $16
-  .db $0b, $1e, $1d, $24, $18, $1e, $1b, $24
-  .db $19, $1b, $12, $17, $0c, $0e, $1c, $1c, $24
-  .db $12, $1c, $24, $12, $17
+  .db $25, $c5, $04
+  .db $10, $18, $18, $0d
 ;"ANOTHER CASTLE!"
-  .db $26, $05, $0f
-  .db $0a, $17, $18, $1d, $11, $0e, $1b, $24
-  .db $0c, $0a, $1c, $1d, $15, $0e, $2b, $00
+  .db $26, $05, $03
+  .db $13, $18, $0b
 
 PrincessSaved1:
 ;"YOUR QUEST IS OVER."
@@ -5356,8 +5432,7 @@ GameMode:
 ;-------------------------------------------------------------------------------------
 
 GameCoreRoutine:
-      ldx CurrentPlayer          ;get which player is on the screen
-      lda SavedJoypadBits,x      ;use appropriate player's controller bits
+      lda SavedJoypadBits
       sta SavedJoypadBits        ;as the master controller bits
       jsr GameRoutines           ;execute one of many possible subs
       lda OperMode_Task          ;check major task of operating mode
@@ -10576,14 +10651,8 @@ NoTTick: ldy #$23               ;set offset here to subtract from game timer's l
          lda #$ff               ;set adder here to $ff, or -1, to subtract one
          sta DigitModifier+5    ;from the last digit of the game timer
          jsr DigitsMathRoutine  ;subtract digit
-         lda CurrentPlayer      ;get player on the screen (or 500 points per
-         asl                    ;fireworks explosion if branched here from there)
-         asl                    ;shift to high nybble
-         asl
-         asl
-         ora #%00000100         ;add four to set nybble for game timer
+         lda #4      ;get player on the screen (or 500 points per
          jmp UpdateNumber       ;jump to print the new score and game timer
-
          rts
 
 RaiseFlagSetoffFWorks:
