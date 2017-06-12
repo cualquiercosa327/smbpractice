@@ -832,8 +832,6 @@ SkipMainOper:  lda PPU_STATUS            ;reset flip-flop
 
 ;-------------------------------------------------------------------------------------
 AdvanceRandom:
-		ldx #$00
-		ldy #$07
 		lda PseudoRandomBitReg    ;get first memory location of LSFR bytes
 		and #%00000010            ;mask out all but d1
 		sta $00                   ;save here
@@ -844,10 +842,13 @@ AdvanceRandom:
 		beq RotPRandomBit
 		sec                       ;if one or the other is set, carry will be set
 RotPRandomBit:
-		ror PseudoRandomBitReg,x  ;rotate carry into d7, and rotate last bit into carry
-		inx                       ;increment to next byte
-		dey                       ;decrement for loop
-		bne RotPRandomBit
+		ror PseudoRandomBitReg+0  ;rotate carry into d7, and rotate last bit into carry
+		ror PseudoRandomBitReg+1  ;rotate carry into d7, and rotate last bit into carry
+		ror PseudoRandomBitReg+2  ;rotate carry into d7, and rotate last bit into carry
+		ror PseudoRandomBitReg+3  ;rotate carry into d7, and rotate last bit into carry
+		ror PseudoRandomBitReg+4  ;rotate carry into d7, and rotate last bit into carry
+		ror PseudoRandomBitReg+5  ;rotate carry into d7, and rotate last bit into carry
+		ror PseudoRandomBitReg+6  ;rotate carry into d7, and rotate last bit into carry
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -1277,12 +1278,28 @@ AdvanceFurther:
 		ora TopScoreDisplay+5
 		beq RuleContinue
 
-		ldx #20
-		stx $1
-DoFrameRule:
 		jsr AdvanceRandom
-		dec $1
-		bpl DoFrameRule
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+		jsr AdvanceRandom
+
 		jmp AdvanceFurther
 
 RuleContinue:
