@@ -855,6 +855,7 @@ RotPRandomBit:
 
 EraseStartRule:
 		ldx #5
+		lda #0
 EraseStartRuleLoop:
 		sta TopScoreDisplay+1,x
 		dex
@@ -1099,23 +1100,25 @@ SaveSelection:
 		jmp MenuDone
 
 GameMenuRoutine:
+		jsr GetPlayerColors
+		ldy #$58
+		jsr DrawPlayer_Intermediate
+
 		lda SavedJoypad1Bits
 		beq NukeTimer
 		ldx SelectTimer
 		bne CantMove
+		cmp #B_Button
+		bne IsSelectPressed
+		jsr EraseStartRule
+		jmp MenuDone
+IsSelectPressed:
 		cmp #Select_Button
 		beq ChangeSelection
-		and #Start_Button
-		bne LetsPlayMario
-		lda SavedJoypad1Bits
+		cmp #Start_Button
+		beq LetsPlayMario
 		jmp SelectionInput
 LetsPlayMario:
-		lda SavedJoypad1Bits
-		and #B_Button
-		beq NoLuigi
-		lda #1
-		sta CurrentPlayer
-NoLuigi:
 		lda LevelNumber
 		ora WorldNumber
 		bne NotFirstLevel
@@ -1231,7 +1234,13 @@ ValueSelected:
 		cmp #Left_Dir
 		beq DecreaseLevel
 		cmp #Right_Dir
+		beq IncreaseLevel
+		cmp #Up_Dir
 		bne WorldSelectionDone
+		lda #1
+		eor CurrentPlayer
+		sta CurrentPlayer
+		jmp FixTimer
 IncreaseLevel:
 		iny
 		jmp SaveNewLevel
@@ -1261,6 +1270,7 @@ RedrawIt:
 		iny
 		txa
 		jsr DrawSelectedNumber
+FixTimer:
 		lda #20
 		sta SelectTimer
 		jsr SetPerfectLevelRule
@@ -1411,6 +1421,10 @@ RuleContinue:
 		;
 		jsr AdvanceRandom
 		jsr AdvanceRandom
+		;
+		; Nume frame
+		;
+		jsr EraseFrameNumber
 		;
 		; Castle levels end on IntervalTimerControl $13,
 		; normal levels on $12. Either consume one more frame,
@@ -1836,7 +1850,9 @@ DisplayIntermediate:
                beq PlayerInter
                lda DisableIntermediate      ;if this flag is set, skip intermediate lives display
                bne NoInter                  ;and jump to specific task, otherwise
-PlayerInter:   jsr DrawPlayer_Intermediate  ;put player in appropriate place for
+PlayerInter:
+               ldy #0
+               jsr DrawPlayer_Intermediate  ;put player in appropriate place for
                lda #$01                     ;lives display, then output lives display to buffer
 OutputInter:   jsr WriteGameText
                jsr ResetScreenTimer
@@ -2555,29 +2571,25 @@ BowserPaletteData:
 
 MarioThanksMessage:
 LuigiThanksMessage:
+  .db $25, $48, $02
+  .db $1d, $22, $00
+
 MushroomRetainerSaved:
 ;"BUT OUR PRINCESS IS IN"
-  .db $25, $c5, $04
-  .db $10, $18, $18, $0d
-;"ANOTHER CASTLE!"
-  .db $26, $05, $03
-  .db $13, $18, $0b
+  .db $25, $c5, $05
+  .db $14, $0a, $19, $19, $0a
+  .db $00
 
 PrincessSaved1:
 ;"YOUR QUEST IS OVER."
-  .db $25, $a7, $13
-  .db $22, $18, $1e, $1b, $24
-  .db $1a, $1e, $0e, $1c, $1d, $24
-  .db $12, $1c, $24, $18, $1f, $0e, $1b, $af
+  .db $25, $a7, $04
+  .db $20, $18, $18, $19
   .db $00
 
 PrincessSaved2:
 ;"WE PRESENT YOU A NEW QUEST."
-  .db $25, $e3, $1b
-  .db $20, $0e, $24
-  .db $19, $1b, $0e, $1c, $0e, $17, $1d, $24
-  .db $22, $18, $1e, $24, $0a, $24, $17, $0e, $20, $24
-  .db $1a, $1e, $0e, $1c, $1d, $af
+  .db $25, $e3, $04
+  .db $20, $18, $18, $19
   .db $00
 
 WorldSelectMessage1:
@@ -7224,6 +7236,15 @@ IncrementFrameNumber:
       sta DigitModifier+5      ;set digit modifier to give player 50 points
       ldy #FRAME_NUMBER_OFFSET
       jsr DigitsMathRoutine  ;update the score internally with value in digit modifier
+      rts
+
+EraseFrameNumber:
+      lda #$0
+      ldx #$5
+MoreErase:
+      sta DisplayDigits+FRAME_NUMBER_OFFSET-5,x
+      dex
+      bne MoreErase
       rts
 
 UpdateRuleTimes:
@@ -14682,9 +14703,14 @@ IntermediatePlayerData:
         .db $58, $01, $00, $60, $ff, $04
 
 DrawPlayer_Intermediate:
-          ldx #$05                       ;store data into zero page memory
-PIntLoop: lda IntermediatePlayerData,x   ;load data to display player as he always
-          sta $02,x                      ;appears on world/lives display
+          lda IntermediatePlayerData
+          sty $02
+          clc
+          adc $02
+          sta $02
+          ldx #$04                       ;store data into zero page memory
+PIntLoop: lda IntermediatePlayerData+1,x   ;load data to display player as he always
+          sta $03,x                      ;appears on world/lives display
           dex
           bpl PIntLoop                   ;do this until all data is loaded
           ldx #$b8                       ;load offset for small standing

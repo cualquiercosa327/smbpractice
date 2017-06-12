@@ -13,8 +13,10 @@ Super Mario Bros. practice ROM for advanced players.
 	* Use Select to move up and down in the menu.
 	* Use Left and Right change world/level.
 	* To change what frame rule to start from, use Left and Right to select digit, and Up and Down to change it.
+	* Press B to set starting Rule to 0 (Will use current game rule if 0).
 	* Press Start as normal to start the game.
-	* Hold B while pressing start to play as Luigi :) Poor fellow never gets to play.
+	* Press Up when Rule is not selected to change to Luigi.
+	  Poor fellow never gets to play :)
 ### In-game
 	* Press Select to get back to title screen.
 
