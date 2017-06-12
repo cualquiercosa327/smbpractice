@@ -21,7 +21,8 @@ Super Mario Bros. practice ROM for advanced players.
 	* Press Select to get back to title screen.
 
 ## Display
-From left to right, the top status bar displays:
+From left to right, the top status bar displays are,
+
 	* Current frame-rule.
 	* Lowest 2 digits of current frame number.
 	* Number of frames left on frame-rule when beating area.
