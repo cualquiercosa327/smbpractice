@@ -3,9 +3,9 @@
 Super Mario Bros. practice ROM for advanced players.
 
 ## Features
-	* Detailed performance metrics, frame rule, frame and frames left on frame-rule.
+	* Detailed performance metrics; frame rule, frame and frames left on frame-rule.
 	* Select what level and frame rule to start on.
-	* Automatic "perfect-frame-rule" selection for each level.
+	* Predefined "perfect-frame-rule" selection for each level.
 	* Infinite lives.
 
 ## Controls
@@ -14,6 +14,7 @@ Super Mario Bros. practice ROM for advanced players.
 	* Use Left and Right change world/level.
 	* To change what frame rule to start from, use Left and Right to select digit, and Up and Down to change it.
 	* Press Start as normal to start the game.
+	* Hold B while pressing start to play as Luigi :) Poor fellow never gets to play.
 ### In-game
 	* Press Select to get back to title screen.
 
@@ -24,10 +25,9 @@ From left to right, the top status bar displays:
 	* Number of frames left on frame-rule when beating area.
 	* Standard game timer.
 
-The values are not updated continuously, as it was pretty hard to make any sense of it. Instead, they are updated at certain events. All values are updated when you exit an area, by a pipe, a vine or by completing the level.
+The values are not updated continuously, as it was pretty hard to make any sense of it. Instead, they are updated at certain checkpoints. All values are updated when you exit an area, by a pipe, a vine or by completing the level.
 
 In addition, the current frame and frame-rule are also updated when you would normally get score.
-
 
 # Build Instructions
 
