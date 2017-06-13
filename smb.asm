@@ -2590,18 +2590,18 @@ PrincessSaved2:
   .db $20, $18, $18, $19
   .db $00
 
+;
+; Point all of these to woop to save a few more bytes... Or ty, or whatever.
+;
 WorldSelectMessage1:
 ;"PUSH BUTTON B"
-  .db $26, $4a, $0d
-  .db $19, $1e, $1c, $11, $24
-  .db $0b, $1e, $1d, $1d, $18, $17, $24, $0b
-  .db $00
+  .db $26, $4a, $04
+  .db $19, $1e, $1c, $11, $00
 
 WorldSelectMessage2:
 ;"TO SELECT A WORLD"
-  .db $26, $88, $11
-  .db $1d, $18, $24, $1c, $0e, $15, $0e, $0c, $1d, $24
-  .db $0a, $24
+  .db $26, $88, $01
+  .db $0b, $00
 WorldText:
   .db $20, $18, $1b, $15, $0d
   .db $00
@@ -16133,7 +16133,7 @@ LoadWaterEventMusEnvData:
 MusicHeaderData:
       .db DeathMusHdr-MHD           ;event music
       .db DeathMusHdr-MHD
-      .db VictoryMusHdr-MHD
+      .db DeathMusHdr-MHD
       .db WinCastleMusHdr-MHD
       .db DeathMusHdr-MHD
       .db EndOfLevelMusHdr-MHD
@@ -16175,7 +16175,6 @@ ResidualHeaderData:   .db $20, $c4, $fc, $3f, $1d
 UndergroundMusHdr:    .db $18, <UndergroundMusData, >UndergroundMusData, $00, $00
 SilenceHdr:           .db $08, <SilenceData, >SilenceData, $00
 CastleMusHdr:         .db $00, <CastleMusData, >CastleMusData, $93, $62
-VictoryMusHdr:        .db $10, <VictoryMusData, >VictoryMusData, $24, $14
 WaterMusHdr:          .db $08, <WaterMusData, >WaterMusData, $a0, $70, $68
 WinCastleMusHdr:      .db $08, <EndOfCastleMusData, >EndOfCastleMusData, $4c, $24
 GroundLevelPart1Hdr:  .db $18, <GroundM_P1Data, >GroundM_P1Data, $2d, $1c, $b8
@@ -16443,19 +16442,6 @@ EndOfCastleMusData:
       .db $86, $16, $81, $16, $80, $16, $16, $81, $16, $16, $16, $16
       .db $81, $28, $22, $1a, $28, $22, $1a, $28, $80, $28, $28
       .db $81, $28, $87, $2c, $2c, $2c, $84, $30
-
-VictoryMusData:
-      .db $83, $04, $84, $0c, $83, $62, $10, $84, $12
-      .db $83, $1c, $22, $1e, $22, $26, $18, $1e, $04, $1c, $00
-
-      .db $e3, $e1, $e3, $1d, $de, $e0, $23
-      .db $ec, $75, $74, $f0, $f4, $f6, $ea, $31, $2d
-
-      .db $83, $12, $14, $04, $18, $1a, $1c, $14
-      .db $26, $22, $1e, $1c, $18, $1e, $22, $0c, $14
-
-;unused space
-      .db $ff, $ff, $ff
 
 FreqRegLookupTbl:
       .db $00, $88, $00, $2f, $00, $00
