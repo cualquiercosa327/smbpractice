@@ -73,7 +73,8 @@ GamePauseStatus       = $0776
 GamePauseTimer        = $0777
 
 RuleIndex             = $0717
-DemoActionTimer       = $0718
+PowerUps              = $0718
+;DemoActionTimer       = $0718
 
 TimerControl          = $0747
 IntervalTimerControl  = $077f
@@ -1083,6 +1084,8 @@ DrawSelectedNumber:
 		rts
 
 ;-------------------------------------------------------------------------------------
+IsBigWorld:
+	.db 1, 1, 0, 1, 0, 0, 1, 0
 
 NukeTimer:
 		lda #0
@@ -1092,7 +1095,7 @@ NukeTimer:
 ChangeSelection:
 		ldx MenuSelection
 		inx
-		cpx #3
+		cpx #4
 		bne SaveSelection
 		ldx #0
 SaveSelection:
@@ -1117,6 +1120,8 @@ IsSelectPressed:
 		beq ChangeSelection
 		cmp #Start_Button
 		beq LetsPlayMario
+		ldx #20
+		stx SelectTimer
 		jmp SelectionInput
 LetsPlayMario:
 		lda LevelNumber
@@ -1127,15 +1132,8 @@ NotFirstLevel:
 		ldx LevelNumber
 		ldy WorldNumber
 		sty OffScr_WorldNumber
-		beq BigWorld
-		dey
-		beq BigWorld
-		dey
-		dey
-		beq BigWorld
-		cpy #3
-		bne SaveAreaNmber
-BigWorld:
+		lda IsBigWorld, y
+		beq SaveAreaNmber
 		cpx #2
 		bmi SaveAreaNmber
 		inx
@@ -1193,7 +1191,7 @@ RuleTestHigh:
 		ldx #1
 SaveRuleIndex:
 		stx RuleIndex
-		jmp RuleUpdated
+		rts
 RTestDown:
 		cmp #Down_Dir
 		bne RTestUp
@@ -1217,8 +1215,6 @@ IsNegative:
 SaveRuleDigit:
 		sta TopScoreDisplay+1,x
 RuleUpdated:
-		lda #20
-		sta SelectTimer
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -1228,7 +1224,12 @@ SelectionInput:
 		ldx MenuSelection
 		beq ValueSelected
 		cpx #1
+		beq LevelInput
+		cpx #2
 		bne RuleInput
+		ldy PowerUps
+		jmp ValueSelected
+LevelInput:
 		ldy LevelNumber
 ValueSelected:
 		cmp #Left_Dir
@@ -1240,10 +1241,10 @@ ValueSelected:
 		lda #1
 		eor CurrentPlayer
 		sta CurrentPlayer
-		jmp FixTimer
+		rts
 IncreaseLevel:
 		iny
-		jmp SaveNewLevel
+		bne SaveNewLevel ; Cant be zero, short jmp
 DecreaseLevel:
 		dey
 SaveNewLevel:
@@ -1251,9 +1252,16 @@ SaveNewLevel:
 		cpx #1
 		beq SaveLevelNotWorld
 		and #$07
+		cpx #2
+		beq SavePowerUps
 		sta WorldNumber
-		ldx #$4B ; offset
-		jmp RedrawIt
+		ldx #$2b ; offset
+		bne RedrawIt ; Cant be zero, short jump
+SavePowerUps:
+		sta PowerUps
+		sbc #1
+		ldx #$ab
+		bne RedrawIt ; Cant be zero, short jump
 SaveLevelNotWorld:
 		cmp #$04
 		bne NotTooBig
@@ -1264,15 +1272,12 @@ NotTooBig:
 		lda #3
 NotTooSmall:
 		sta LevelNumber
-		ldx #$8b ; offset
+		ldx #$6b ; offset
 RedrawIt:
 		tay
 		iny
 		txa
 		jsr DrawSelectedNumber
-FixTimer:
-		lda #20
-		sta SelectTimer
 		jsr SetPerfectLevelRule
 WorldSelectionDone:
 		rts
@@ -1308,13 +1313,13 @@ WriteRuleCursor:
 ;-------------------------------------------------------------------------------------
 
 MushroomIconData:
-      .db $22, $49, $86, $24, $24, $24, $24, $24, $24, $00
+      .db $22, $29, $87, $24, $24, $24, $24, $24, $24, $24, $00
 
 DrawMushroomIcon:
-              ldy #$09
+              ldy #$0a
               lda VRAM_Buffer1_Offset
               clc
-              adc #$09
+              adc #$0a
               sta VRAM_Buffer1_Offset
               tax
 IconDataRead: lda MushroomIconData,y
@@ -1322,19 +1327,13 @@ IconDataRead: lda MushroomIconData,y
               dex
               dey
               bpl IconDataRead
-              inx
+              lda MenuSelection
+              asl
+              clc
+              adc VRAM_Buffer1_Offset
+              tax
               lda #$ce
-              ldy MenuSelection
-              bne IsLevelSelected
-              sta VRAM_Buffer1+3,x
-              rts
-IsLevelSelected:
-              dey
-              bne RuleSelected
-              sta VRAM_Buffer1+5,x
-              rts
-RuleSelected:
-              sta VRAM_Buffer1+8,x
+              sta VRAM_Buffer1+3-$0a,x
               rts
 
 ;-------------------------------------------------------------------------------------
@@ -1934,8 +1933,8 @@ TopStatusBarLine:
   .db $20, $43, $0d, $1b, $1e, $15, $0e ; "MARIO"
   .db $24, $24, $24, $24
   .db $0f, $1b, $0a, $16, $0e
-  .db $20, $52, $0b, $15, $0e, $0f, $1d, $24 ; "WORLD  TIME"
-  .db $24, $24, $1d, $12, $16, $0e
+  .db $20, $52, $0d, $15, $0e, $0f, $1d, $24 ; "WORLD  TIME"
+  .db $19, $18, $1c, $24, $1d, $12, $16, $0e
   .db $20, $68, $05, $24, $24, $24, $2e, $29 ; score trailing digit and coin display
   .db $23, $c0, $7f, $aa ; attribute table data, clears name table 0 to palette 2
   .db $23, $c2, $01, $ea ; attribute table data, used for coin icon in status bar
@@ -1952,8 +1951,7 @@ WorldLivesDisplay:
 
 TwoPlayerTimeUp:
 OnePlayerTimeUp:
-  .db $22, $0c, $07, $1d, $12, $16, $0e, $24, $1e, $19 ; "TIME UP"
-  .db $ff
+  .db $22, $0c, $01, $1d
 
 TwoPlayerGameOver:
 OnePlayerGameOver:
@@ -2769,7 +2767,7 @@ StatusBarData:
       .db $62, $06
       .db $6d, $02 ; coin tally
       .db $6d, $02
-      .db $7a, $03 ; game timer
+      .db $7c, $03 ; game timer
 
 StatusBarOffset:
       .db $06, $0c, $12, $18, $1e, $24
