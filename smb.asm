@@ -236,8 +236,7 @@ PowerUpFrames         = $075a
 HalfwayPage           = $075b
 LevelNumber           = $075c ;the actual dash number
 Hidden1UpFlag         = $075d
-; CoinTally             = $075e
-LastKnownXPos         = $075e
+CoinTally             = $075e
 WorldNumber           = $075f
 AreaNumber            = $0760 ;internal number used to find areas
 
@@ -825,14 +824,6 @@ SkipSprite0:   lda HorizontalScroll      ;set scroll registers from variables
                lda Mirror_PPU_CTRL_REG1  ;load saved mirror of $2000
                pha
                sta PPU_CTRL_REG1
-               ;
-               ; Update POS
-               ;
-               ldx LastKnownXPos
-               cpx Player_Rel_XPos
-               bmi IncKnownPlayerPos
-               bne DecKnownPlayerPos
-RunGameLogic:
                lda GamePauseStatus       ;if in pause mode, do not perform operation mode stuff
                lsr
                bcs SkipMainOper
@@ -842,21 +833,6 @@ SkipMainOper:  lda PPU_STATUS            ;reset flip-flop
                ora #%10000000            ;reactivate NMIs
                sta PPU_CTRL_REG1
                rti                       ;we are done until the next frame!
-
-DecKnownPlayerPos:
-		lda #$ff
-		dex
-		jmp UpdatePlayerPos
-IncKnownPlayerPos:
-		lda #$01
-		inx
-UpdatePlayerPos:
-		stx LastKnownXPos
-		sta DigitModifier+4
-		ldy #POSITION_OFFSET
-		jsr DigitsMathRoutineForce
-		jmp RunGameLogic
-
 
 ;-------------------------------------------------------------------------------------
 AdvanceRandom:
@@ -2831,9 +2807,10 @@ StatusBarData:
       .db $6d, $02 ; coin tally
       .db $6d, $02
       .db $7c, $03 ; game timer
+      .db $77, $03 ; game timer
 
 StatusBarOffset:
-      .db $06, $0c, $12, $18, $1e, $24
+      .db $06, $0c, $12, $18, $1e, $24, POSITION_OFFSET
 
 PrintStatusBarNumbers:
       sta $00            ;store player-specific offset
@@ -2848,7 +2825,7 @@ OutputNumbers:
              clc                      ;add 1 to low nybble
              adc #$01
              and #%00001111           ;mask out high nybble
-             cmp #$06
+             cmp #$07
              bcs ExitOutputN
              pha                      ;save incremented value to stack for now and
              asl                      ;shift to left and use as offset
@@ -5533,6 +5510,10 @@ ProcELoop:    stx ObjectOffset           ;put incremented offset in X as enemy o
               jsr ProcessWhirlpools      ;process whirlpools
               jsr FlagpoleRoutine        ;process the flagpole
               jsr RunGameTimer           ;count down the game timer
+              lda VRAM_Buffer1_Offset
+              bne DontRedrawPosition
+              jsr RedrawPosition       ; Only redraw position if we didnt draw timer (bugs occationally)
+DontRedrawPosition:
               jsr ColorRotation          ;cycle one of the background colors
               lda Player_Y_HighPos
               cmp #$02                   ;if player is below the screen, don't bother with the music
@@ -7277,7 +7258,7 @@ RedrawFrameNumber:
 CoinPoints:
 AddToScore:
 GetSBNybbles:
-      lda #STATUS_BAR_OFFSET
+        lda #STATUS_BAR_OFFSET
 UpdateNumber:
         jsr PrintStatusBarNumbers ;print status bar numbers based on nybbles, whatever they be
 		ldy VRAM_Buffer1_Offset   
@@ -7358,6 +7339,32 @@ RedrawAll:
       rts
 
 ;-------------------------------------------------------------------------------------
+
+DivByTen:
+		ldx #$00
+DivMore:
+ 		cmp #$0a
+ 		bcc DivByTenDone
+ 		sbc #$0a
+ 		inx
+ 		sec
+ 		bcs DivMore
+DivByTenDone:
+ 		rts
+
+;-------------------------------------------------------------------------------------
+
+RedrawPosition:
+		lda Player_Rel_XPos
+		jsr DivByTen
+		sta DisplayDigits+POSITION_OFFSET-1
+		txa
+		jsr DivByTen
+		sta DisplayDigits+POSITION_OFFSET-2
+		stx DisplayDigits+POSITION_OFFSET-3
+		lda #$a5
+		jsr PrintStatusBarNumbers
+		rts
 
 ;-------------------------------------------------------------------------------------
 
@@ -12321,6 +12328,7 @@ PlyrPipe: ora #%00100000
           iny                        ;otherwise increment offset
 SetCATmr: lda AreaChangeTimerData,y  ;set timer for change of area as appropriate
           sta ChangeAreaTimer
+          jsr RedrawAll
 ChkGERtn: lda GameEngineSubroutine   ;get number of game engine routine running
           cmp #$07
           beq ExCSM                  ;if running player entrance routine or
@@ -12328,7 +12336,6 @@ ChkGERtn: lda GameEngineSubroutine   ;get number of game engine routine running
           bne ExCSM
           lda #$02
           sta GameEngineSubroutine   ;otherwise set sideways pipe entry routine to run
-          jsr RedrawAll
           rts                        ;and leave
 
 ;--------------------------------
