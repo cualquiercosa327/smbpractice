@@ -73,7 +73,6 @@ GamePauseStatus       = $0776
 GamePauseTimer        = $0777
 
 RuleIndex             = $0717
-PowerUps              = $0718
 ;DemoActionTimer       = $0718
 
 TimerControl          = $0747
@@ -103,6 +102,8 @@ ScreenTimer           = $07a0
 WorldEndTimer         = $07a1
 DemoTimer             = $07a2
 
+
+PowerUps              = $07e3
 ; DO_REDRAW_REMAINING = $07e3
 
 Sprite_Data           = $0200
@@ -1344,9 +1345,8 @@ AdvanceFrame:
 	rts
 
 ;-------------------------------------------------------------------------------------
-
-InitalizeAreaContiunue:
-		jmp InitializeAreaStable
+NoAdvanceRequired:
+		jmp SecondaryGameSetupContinue
 
 AdvanceToRule:
 		;
@@ -1354,13 +1354,13 @@ AdvanceToRule:
 		;
 		ldx PowerUps
 		beq NoPowerups
-		lda #60
+		lda #59
 		dex
 		beq BigMarioPowerup
 		dex
 		lda #2
 		sta PlayerStatus
-		lda #123
+		lda #122
 		;
 		; Big mario
 		;
@@ -1376,15 +1376,11 @@ NoPowerups:
 		ora TopScoreDisplay+3
 		ora TopScoreDisplay+4
 		ora TopScoreDisplay+5
-		beq InitalizeAreaContiunue
+		beq NoAdvanceRequired
 		lda IntervalTimerControl
-		cmp #$13
-		beq BeginRuleAdvance
-		;
-		; Wait for interval timer to reach $13
-		;
-		rts
-BeginRuleAdvance:
+		cmp #$03
+DeadLock:
+        bne DeadLock
 		;
 		; Copy to current rule
 		;
@@ -1451,8 +1447,13 @@ RuleContinue:
 		;
 		; Advance to correct place within this rule
 		;
+		lda #18
+		sta $02
+AdvanceWithin:
 		jsr AdvanceFrame
-		jsr AdvanceFrame
+		dec $02
+		bne AdvanceWithin
+
 		;
 		; Advance powerup frames
 		;
@@ -1467,18 +1468,9 @@ NoPowerUpFrames:
 		;
 		jsr EraseFrameNumber
 		;
-		; Castle levels end on IntervalTimerControl $13,
-		; normal levels on $12. Either consume one more frame,
-		; or load the area immediately.
+		; On the correct framerule, continue with the game.
 		;
-		lda LevelNumber
-		beq FirstLevel 
-WorldOneOne:
-		rts
-FirstLevel:
-		lda WorldNumber
-		beq WorldOneOne
-		jmp InitalizeAreaContiunue
+		jmp SecondaryGameSetupContinue
 
 ;-------------------------------------------------------------------------------------
 
@@ -2914,8 +2906,6 @@ ClrSndLoop:  sta SoundMemory,y     ;clear out memory used
              jsr LoadAreaPointer
 
 InitializeArea:
-               jmp AdvanceToRule
-InitializeAreaStable:
                ldy #$4b                 ;clear all memory again, only as far as $074b
                jsr InitializeMemory     ;this is only necessary if branching from
                ldx #$21
@@ -2975,10 +2965,13 @@ DoneInitArea:  lda #Silence             ;silence music
 ;-------------------------------------------------------------------------------------
 
 PrimaryGameSetup:
-      lda #$01
-      sta FetchNewGameTimerFlag   ;set flag to load game timer from header
-      sta PlayerSize              ;set player's size to small
+             lda #$01
+             sta FetchNewGameTimerFlag   ;set flag to load game timer from header
+             sta PlayerSize              ;set player's size to small
+             jmp SecondaryGameSetupContinue
 SecondaryGameSetup:
+             jmp AdvanceToRule
+SecondaryGameSetupContinue:
              lda #$00
              sta DisableScreenFlag     ;enable screen output
              tay
