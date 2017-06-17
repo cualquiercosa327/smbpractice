@@ -101,7 +101,8 @@ InjuryTimer           = $079e
 StarInvincibleTimer   = $079f
 ScreenTimer           = $07a0
 WorldEndTimer         = $07a1
-DemoTimer             = $07a2
+PowerUpFrames         = $07a2
+;DemoTimer             = $07a2
 
 Sprite_Data           = $0200
 
@@ -792,7 +793,10 @@ DecTimersLoop: lda Timers,x              ;check current timer
 SkipExpTimer:  dex                       ;move onto next timer
                bpl DecTimersLoop         ;do this until all timers are dealt with
                jsr UpdateRuleTimes
-NoDecTimers:   inc FrameCounter          ;increment frame counter
+               jmp Fuckit
+NoDecTimers:   lda #0
+Fuckit:
+               inc FrameCounter          ;increment frame counter
                jsr IncrementFrameNumber
                jmp NotPaused
 PauseSkip:     jsr RedrawAll
@@ -1124,11 +1128,6 @@ IsSelectPressed:
 		stx SelectTimer
 		jmp SelectionInput
 LetsPlayMario:
-		lda LevelNumber
-		ora WorldNumber
-		bne NotFirstLevel
-		jsr EraseStartRule
-NotFirstLevel:
 		ldx LevelNumber
 		ldy WorldNumber
 		sty OffScr_WorldNumber
@@ -1249,30 +1248,32 @@ DecreaseLevel:
 		dey
 SaveNewLevel:
 		tya
-		cpx #1
-		beq SaveLevelNotWorld
+		cpx #0
+		bne SaveLevelNotWorld
 		and #$07
-		cpx #2
-		beq SavePowerUps
 		sta WorldNumber
 		ldx #$2b ; offset
 		bne RedrawIt ; Cant be zero, short jump
-SavePowerUps:
-		sta PowerUps
-		sbc #1
-		ldx #$ab
-		bne RedrawIt ; Cant be zero, short jump
 SaveLevelNotWorld:
-		cmp #$04
-		bne NotTooBig
-		lda #0
-NotTooBig:
-		cmp #0
-		bpl NotTooSmall
-		lda #3
-NotTooSmall:
+		cpx #2
+		beq SavePowerUps
+		and #$03
 		sta LevelNumber
 		ldx #$6b ; offset
+		bne RedrawIt
+SavePowerUps:
+		cmp #3
+		bne NotThreeLol
+		lda #0
+NotThreeLol:
+		cmp #$ff
+		bne NotNegative
+		lda #2
+NotNegative:
+		sta PowerUps
+		sec
+		sbc #1
+		ldx #$ab
 RedrawIt:
 		tay
 		iny
@@ -1338,10 +1339,38 @@ IconDataRead: lda MushroomIconData,y
 
 ;-------------------------------------------------------------------------------------
 
+AdvanceFrame:
+	jsr AdvanceRandom
+	inc FrameCounter
+	rts
+
+;-------------------------------------------------------------------------------------
+
 InitalizeAreaContiunue:
 		jmp InitializeAreaStable
 
 AdvanceToRule:
+		;
+		; Regardless if rule, always honor powerups
+		;
+		ldx PowerUps
+		beq NoPowerups
+		lda #60
+		dex
+		beq BigMarioPowerup
+		dex
+		lda #2
+		sta PlayerStatus
+		lda #123
+		;
+		; Big mario
+		;
+BigMarioPowerup:
+		sta PowerUpFrames
+		stx PlayerSize
+		stx PowerUps
+NoPowerups:
+		;
 		; If Rule is 0, use title Rule
 		; 
 		lda TopScoreDisplay+2
@@ -1373,6 +1402,7 @@ KeepCopyRule:
 		;
 		ldx #6
 		lda #0
+		sta FrameCounter ; Restart frame counter
 ResetRandom:
 		sta PseudoRandomBitReg+1,x
 		dex
@@ -1412,16 +1442,29 @@ AdvanceFurther:
 		jsr AdvanceRandom
 		jsr AdvanceRandom
 
+		lda #21
+		clc
+		adc FrameCounter
+		sta FrameCounter
 		jmp AdvanceFurther
 
 RuleContinue:
 		;
 		; Advance to correct place within this rule
 		;
-		jsr AdvanceRandom
-		jsr AdvanceRandom
+		jsr AdvanceFrame
+		jsr AdvanceFrame
 		;
-		; Nume frame
+		; Advance powerup frames
+		;
+MorePowerUpFrames:
+		dec PowerUpFrames
+		bmi NoPowerUpFrames
+		jsr AdvanceFrame
+		jmp MorePowerUpFrames
+NoPowerUpFrames:
+		;
+		; Nuke frame
 		;
 		jsr EraseFrameNumber
 		;
@@ -1431,8 +1474,11 @@ RuleContinue:
 		;
 		lda LevelNumber
 		beq FirstLevel 
+WorldOneOne:
 		rts
 FirstLevel:
+		lda WorldNumber
+		beq WorldOneOne
 		jmp InitalizeAreaContiunue
 
 ;-------------------------------------------------------------------------------------

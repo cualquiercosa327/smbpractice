@@ -18,19 +18,16 @@ def random_advance(seed):
 
 	return seed
 
-find = [ 
-[ 0x0F, 0xF3, 0xEC, 0x0B, 0xD3, 0xC4, 0x63 ],
-[ 0x1C, 0x0E, 0x36, 0x2A, 0x46, 0x12, 0x9E ] ]
+find = [ ]
 seed = random_init()
 total = 0
 
 #while True:
-for i in range(0, 1100):
-	print('Frame rule: %d' % (total))
-	for i in range(0, 21):
-		seed = random_advance(seed)
-		print(' '.join([ '%02X' % it for it in seed ]))
-		if seed in find:
-			print('[%d] Found block!' % (i))
-			print('#' * 60)
+for i in range(0, 0x10000):
+	sys.stdout.write('Frame: %d, Rule: %d - ' % (total, total / 21))
+	print(''.join([ '%02X' % it for it in seed ]))
+	seed = random_advance(seed)
+		#if seed in find:
+		#	print('[%d] Found block!' % (i))
+		#	print('#' * 60)
 	total += 1
