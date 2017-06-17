@@ -101,8 +101,9 @@ InjuryTimer           = $079e
 StarInvincibleTimer   = $079f
 ScreenTimer           = $07a0
 WorldEndTimer         = $07a1
-PowerUpFrames         = $07a2
-;DemoTimer             = $07a2
+DemoTimer             = $07a2
+
+; DO_REDRAW_REMAINING = $07e3
 
 Sprite_Data           = $0200
 
@@ -229,18 +230,21 @@ PlayerSize            = $0754
 PlayerStatus          = $0756
 
 OnscreenPlayerInfo    = $075a
-NumberofLives         = $075a ;used by current player
+; NumberofLives         = $075a ;used by current player
+PowerUpFrames         = $075a
+
 HalfwayPage           = $075b
 LevelNumber           = $075c ;the actual dash number
 Hidden1UpFlag         = $075d
-CoinTally             = $075e
+; CoinTally             = $075e
+LastKnownXPos         = $075e
 WorldNumber           = $075f
 AreaNumber            = $0760 ;internal number used to find areas
 
 CoinTallyFor1Ups      = $0748
 
 OffscreenPlayerInfo   = $0761
-OffScr_NumberofLives  = $0761 ;used by offscreen player
+; OffScr_NumberofLives  = $0761 ;used by offscreen player
 OffScr_HalfwayPage    = $0762
 OffScr_LevelNumber    = $0763
 OffScr_Hidden1UpFlag  = $0764
@@ -767,10 +771,6 @@ InitBuffer:    ldx VRAM_Buffer_Offset,y
                sta VRAM_Buffer_AddrCtrl  ;reinit address control to $0301
                lda Mirror_PPU_CTRL_REG2  ;copy mirror of $2001 to register
                sta PPU_CTRL_REG2
-               lda DO_REDRAW_REMAINING
-               beq DontRedrawRemaining
-               jsr RedrawRemaining
-DontRedrawRemaining:
                jsr SoundEngine           ;play sound
                jsr ReadJoypads           ;read joypads
                jsr PauseRoutine          ;handle pause
@@ -825,6 +825,14 @@ SkipSprite0:   lda HorizontalScroll      ;set scroll registers from variables
                lda Mirror_PPU_CTRL_REG1  ;load saved mirror of $2000
                pha
                sta PPU_CTRL_REG1
+               ;
+               ; Update POS
+               ;
+               ldx LastKnownXPos
+               cpx Player_Rel_XPos
+               bmi IncKnownPlayerPos
+               bne DecKnownPlayerPos
+RunGameLogic:
                lda GamePauseStatus       ;if in pause mode, do not perform operation mode stuff
                lsr
                bcs SkipMainOper
@@ -834,6 +842,21 @@ SkipMainOper:  lda PPU_STATUS            ;reset flip-flop
                ora #%10000000            ;reactivate NMIs
                sta PPU_CTRL_REG1
                rti                       ;we are done until the next frame!
+
+DecKnownPlayerPos:
+		lda #$ff
+		dex
+		jmp UpdatePlayerPos
+IncKnownPlayerPos:
+		lda #$01
+		inx
+UpdatePlayerPos:
+		stx LastKnownXPos
+		sta DigitModifier+4
+		ldy #POSITION_OFFSET
+		jsr DigitsMathRoutineForce
+		jmp RunGameLogic
+
 
 ;-------------------------------------------------------------------------------------
 AdvanceRandom:
@@ -1595,6 +1618,7 @@ IncMsgCounter: lda SecondaryMsgCounter
                sta PrimaryMsgCounter
                cmp #$07                      ;check primary counter one more time
 SetEndTimer:   bcc ExitMsgs                  ;if not reached value yet, branch to leave
+               jsr RedrawAll
                lda #$06
                sta WorldEndTimer             ;otherwise set world end timer
 IncModeTask_A: inc OperMode_Task             ;move onto next task in mode
@@ -2624,30 +2648,23 @@ MushroomRetainerSaved:
   .db $14, $0a, $19, $19, $0a
   .db $00
 
+WorldSelectMessage1:
 PrincessSaved1:
 ;"YOUR QUEST IS OVER."
   .db $25, $a7, $04
   .db $20, $18, $18, $19
   .db $00
 
+WorldSelectMessage2:
 PrincessSaved2:
 ;"WE PRESENT YOU A NEW QUEST."
   .db $25, $e3, $04
   .db $20, $18, $18, $19
   .db $00
 
-;
-; Point all of these to woop to save a few more bytes... Or ty, or whatever.
-;
-WorldSelectMessage1:
 ;"PUSH BUTTON B"
-  .db $26, $4a, $04
-  .db $19, $1e, $1c, $11, $00
-
-WorldSelectMessage2:
 ;"TO SELECT A WORLD"
-  .db $26, $88, $01
-  .db $0b, $00
+
 WorldText:
   .db $20, $18, $1b, $15, $0d
   .db $00
@@ -2984,10 +3001,6 @@ PrimaryGameSetup:
       lda #$01
       sta FetchNewGameTimerFlag   ;set flag to load game timer from header
       sta PlayerSize              ;set player's size to small
-      lda #$02
-      sta NumberofLives           ;give each player three lives
-      sta OffScr_NumberofLives
-
 SecondaryGameSetup:
              lda #$00
              sta DisableScreenFlag     ;enable screen output
@@ -7258,7 +7271,7 @@ STATUS_BAR_OFFSET = $02
 RULE_COUNT_OFFSET = $0b
 FRAME_NUMBER_OFFSET = $17
 FRAMES_REMAIN_OFFSET = $0e
-DO_REDRAW_REMAINING = $07e3
+POSITION_OFFSET = $14
 
 RedrawFrameNumber:
 CoinPoints:
@@ -7280,6 +7293,8 @@ IncrementFrameNumber:
       sta DigitModifier+5      ;set digit modifier to give player 50 points
       ldy #FRAME_NUMBER_OFFSET
       jsr DigitsMathRoutine  ;update the score internally with value in digit modifier
+      lda #0
+      sta DisplayDigits+FRAME_NUMBER_OFFSET-3
       rts
 
 EraseFrameNumber:
@@ -7315,6 +7330,8 @@ NotYet:
 DoneWithRule:
       rts
 
+;-------------------------------------------------------------------------------------
+
 RedrawRemaining:
       ldx VRAM_Buffer1_Offset
       lda #$20                ;write address for world-area number on screen
@@ -7333,14 +7350,14 @@ RedrawRemaining:
       clc
       adc #$05
       sta VRAM_Buffer1_Offset
-      lda #0
-      sta DO_REDRAW_REMAINING
       rts
 
 RedrawAll:
-      jsr RedrawFrameNumber
       jsr RedrawRemaining
+      jsr RedrawFrameNumber
       rts
+
+;-------------------------------------------------------------------------------------
 
 ;-------------------------------------------------------------------------------------
 
@@ -10763,9 +10780,7 @@ DrawFlagSetTimer:
       sta EnemyIntervalTimer,x  ;set interval timer here
 
 IncrementSFTask2:
-      jsr RedrawFrameNumber
-      lda #1
-      sta DO_REDRAW_REMAINING
+      jsr RedrawAll
       inc StarFlagTaskControl   ;move onto next task
       rts
 
