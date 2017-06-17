@@ -237,7 +237,7 @@ PowerUpFrames         = $075a
 HalfwayPage           = $075b
 LevelNumber           = $075c ;the actual dash number
 Hidden1UpFlag         = $075d
-CoinTally             = $075e
+; CoinTally             = $075e
 WorldNumber           = $075f
 AreaNumber            = $0760 ;internal number used to find areas
 
@@ -792,11 +792,8 @@ DecTimersLoop: lda Timers,x              ;check current timer
                dec Timers,x              ;otherwise decrement the current timer
 SkipExpTimer:  dex                       ;move onto next timer
                bpl DecTimersLoop         ;do this until all timers are dealt with
-               jsr UpdateRuleTimes
-               jmp Fuckit
-NoDecTimers:   lda #0
-Fuckit:
-               inc FrameCounter          ;increment frame counter
+               jsr UpdateFrameRule
+NoDecTimers:   inc FrameCounter          ;increment frame counter
                jsr IncrementFrameNumber
                jmp NotPaused
 PauseSkip:     jsr RedrawAll
@@ -1099,7 +1096,7 @@ NukeTimer:
 ChangeSelection:
 		ldx MenuSelection
 		inx
-		cpx #4
+		cpx #5
 		bne SaveSelection
 		ldx #0
 SaveSelection:
@@ -1159,13 +1156,8 @@ MenuDone:
 		jsr DrawRuleCursor
 		lda #$fa
 		jsr UpdateNumber
-		lda #$24
-		ldx VRAM_Buffer1_Offset
-		sta VRAM_Buffer1-5,x
-		lda #$00
-		sta TopScoreDisplay+1
 		sta SavedJoypad1Bits
-		jsr RedrawFrameNumber
+		jsr RedrawFrameNumbers
 		rts
 
 ;-------------------------------------------------------------------------------------
@@ -1286,7 +1278,7 @@ WorldSelectionDone:
 ;-------------------------------------------------------------------------------------
 
 RuleCursorData:
-	.db $22, $d1, $06, $24, $24, $24, $24, $24, $24, $00
+	.db $22, $d0, $06, $24, $24, $24, $24, $24, $24, $00
 
 DrawRuleCursor:
 		ldy #9
@@ -1329,8 +1321,10 @@ IconDataRead: lda MushroomIconData,y
               dey
               bpl IconDataRead
               lda MenuSelection
-              asl
-              clc
+              ;cmp #3
+              ;bmi FirstThree
+              
+FirstThree:
               adc VRAM_Buffer1_Offset
               tax
               lda #$ce
@@ -1466,7 +1460,9 @@ NoPowerUpFrames:
 		;
 		; Nuke frame
 		;
-		jsr EraseFrameNumber
+		lda #$0
+		sta DisplayDigits+FRAME_NUMBER_OFFSET,x
+		sta DisplayDigits+FRAME_NUMBER_OFFSET-1,x
 		;
 		; On the correct framerule, continue with the game.
 		;
@@ -1968,8 +1964,8 @@ IncModeTask_B: inc OperMode_Task  ;move onto next mode
 
 GameText:
 TopStatusBarLine:
-  .db $20, $43, $0d, $1b, $1e, $15, $0e ; "MARIO"
-  .db $24, $24, $24, $24
+  .db $20, $42, $0e, $1b, $1e, $15, $0e ; "MARIO"
+  .db $24, $24, $24, $24, $24
   .db $0f, $1b, $0a, $16, $0e
   .db $20, $52, $0d, $15, $0e, $0f, $1d, $24 ; "WORLD  TIME"
   .db $19, $18, $1c, $24, $1d, $12, $16, $0e
@@ -2793,16 +2789,18 @@ WritePPUReg1:
 
 ;status bar name table offset and length data
 StatusBarData:
-      .db $f0, $06 ; top score display on title screen
-      .db $62, $06 ; player score
+      .db $f1, $04 ; top score display on title screen
+      .db $62, $04 ; player score
       .db $62, $06
       .db $6d, $02 ; coin tally
       .db $6d, $02
       .db $7c, $03 ; game timer
-      .db $77, $03 ; game timer
+      .db $77, $03 ; POS
+      .db $74, $02 ; LEFT
 
 StatusBarOffset:
-      .db $06, $0c, $12, $18, $1e, $24, POSITION_OFFSET
+      .db $06, $0c, $12, $18, $1e, $24
+      .db POSITION_OFFSET+1, FRAMES_REMAIN_OFFSET+1
 
 PrintStatusBarNumbers:
       sta $00            ;store player-specific offset
@@ -2817,7 +2815,7 @@ OutputNumbers:
              clc                      ;add 1 to low nybble
              adc #$01
              and #%00001111           ;mask out high nybble
-             cmp #$07
+             cmp #$08
              bcs ExitOutputN
              pha                      ;save incremented value to stack for now and
              asl                      ;shift to left and use as offset
@@ -3137,7 +3135,7 @@ ChkSwimE: ldy AreaType                ;if level not water-type,
           jsr SetupBubble             ;otherwise, execute sub to set up air bubbles
 SetPESub: lda #$07                    ;set to run player entrance subroutine
           sta GameEngineSubroutine    ;on the next frame of game engine
-          jsr RedrawFrameNumber
+          jsr RedrawFrameNumbers
           rts
 
 ;-------------------------------------------------------------------------------------
@@ -7164,7 +7162,7 @@ JCoinC: lda #$fb
         sta Misc_State,y       ;set state for misc object
         sta Square2SoundQueue  ;load coin grab sound
         stx ObjectOffset       ;store current control bit as misc object offset 
-        jmp RedrawFrameNumber
+        jmp RedrawFrameNumbers
 
 FindEmptyMiscSlot:
            ldy #$08                ;start at end of misc objects buffer
@@ -7245,20 +7243,15 @@ STATUS_BAR_OFFSET = $02
 RULE_COUNT_OFFSET = $0b
 FRAME_NUMBER_OFFSET = $17
 FRAMES_REMAIN_OFFSET = $0e
-POSITION_OFFSET = $14
+POSITION_OFFSET = $13
 
-RedrawFrameNumber:
+RedrawFrameNumbers:
 CoinPoints:
 AddToScore:
 GetSBNybbles:
         lda #STATUS_BAR_OFFSET
 UpdateNumber:
         jsr PrintStatusBarNumbers ;print status bar numbers based on nybbles, whatever they be
-		ldy VRAM_Buffer1_Offset   
-        lda VRAM_Buffer1-6,y      ;check highest digit of score
-        bne NoZSup                ;if zero, overwrite with space tile for zero suppression
-        lda #$24
-        sta VRAM_Buffer1-6,y
 NoZSup: ldx ObjectOffset          ;get enemy object buffer offset
         rts
 
@@ -7268,67 +7261,34 @@ IncrementFrameNumber:
       ldy #FRAME_NUMBER_OFFSET
       jsr DigitsMathRoutine  ;update the score internally with value in digit modifier
       lda #0
-      sta DisplayDigits+FRAME_NUMBER_OFFSET-3
+      sta DisplayDigits+FRAME_NUMBER_OFFSET-2
       rts
 
-EraseFrameNumber:
-      lda #$0
-      ldx #$5
-MoreErase:
-      sta DisplayDigits+FRAME_NUMBER_OFFSET-5,x
-      dex
-      bne MoreErase
-      rts
-
-UpdateRuleTimes:
+UpdateFrameRule:
       lda #$14
       cmp IntervalTimerControl
-      bne NotYet
-      lda #$01               ;set digit modifier to add 1 coin
-      sta DigitModifier+5    ;to the current player's coin tally
-      ldy #RULE_COUNT_OFFSET
-      jsr DigitsMathRoutine  ;update the coin tally
-      lda #2
-      sta DigitModifier+4
-      ldy #FRAMES_REMAIN_OFFSET
-      jsr DigitsMathRoutine
-      jmp DoneWithRule
-NotYet:
-      ldy #FRAMES_REMAIN_OFFSET
-      lda DisplayDigits,y
-      ora DisplayDigits-1,y
-      beq DoneWithRule
-      lda #$ff
+      bne NotEvenFrameRule
+      lda #$01
       sta DigitModifier+5
-      jsr DigitsMathRoutine  ; Subtract from remaining 
-DoneWithRule:
+      ldy #RULE_COUNT_OFFSET
+      jsr DigitsMathRoutine
+NotEvenFrameRule:
       rts
 
 ;-------------------------------------------------------------------------------------
 
 RedrawRemaining:
-      ldx VRAM_Buffer1_Offset
-      lda #$20                ;write address for world-area number on screen
-      sta VRAM_Buffer1,x
-      lda #$74
-      sta VRAM_Buffer1+1,x
-      lda #$02                ;write length for it
-      sta VRAM_Buffer1+2,x
-      lda DisplayDigits+FRAMES_REMAIN_OFFSET-1
-      sta VRAM_Buffer1+3,x
-      lda DisplayDigits+FRAMES_REMAIN_OFFSET
-      sta VRAM_Buffer1+4,x    
-      lda #$00                ;put null terminator on
-      sta VRAM_Buffer1+5,x
-      txa                     ;move the buffer offset up by 6 bytes
-      clc
-      adc #$05
-      sta VRAM_Buffer1_Offset
+      lda IntervalTimerControl
+      jsr DivByTen
+      sta DisplayDigits+FRAMES_REMAIN_OFFSET
+      stx DisplayDigits+FRAMES_REMAIN_OFFSET-1
+      lda #$a6
+      jsr PrintStatusBarNumbers
       rts
 
 RedrawAll:
       jsr RedrawRemaining
-      jsr RedrawFrameNumber
+      jsr RedrawFrameNumbers
       rts
 
 ;-------------------------------------------------------------------------------------
@@ -7350,11 +7310,11 @@ DivByTenDone:
 RedrawPosition:
 		lda Player_Rel_XPos
 		jsr DivByTen
-		sta DisplayDigits+POSITION_OFFSET-1
+		sta DisplayDigits+POSITION_OFFSET
 		txa
 		jsr DivByTen
-		sta DisplayDigits+POSITION_OFFSET-2
-		stx DisplayDigits+POSITION_OFFSET-3
+		sta DisplayDigits+POSITION_OFFSET-1
+		stx DisplayDigits+POSITION_OFFSET-2
 		lda #$a5
 		jsr PrintStatusBarNumbers
 		rts
@@ -12345,7 +12305,7 @@ AreaChangeTimerData:
 
 HandleCoinMetatile:
       jsr ErACM             ;do sub to erase coin metatile from block buffer
-      jmp RedrawFrameNumber
+      jmp RedrawFrameNumbers
 
 HandleAxeMetatile:
        lda #$00
