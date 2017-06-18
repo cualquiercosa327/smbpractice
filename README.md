@@ -41,7 +41,7 @@ In addition, the current frame and frame-rule are also updated when you would no
 
 ## Using IPS
 	
-	1. Download [Lunar IPS](http://fusoya.eludevisibility.org/lips/download/lips102.zip).
+	1. Download Lunar IPS (http://fusoya.eludevisibility.org/lips/download/lips102.zip).
 	2. Get the latest IPS patch from from the ips directory in this repo.
 	3. Using Lunar IPS, patch your original SMB (US/JP) ROM with the .ips.
 
