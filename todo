@@ -1,8 +1,19 @@
-- Lugi message removed ? might cause it to get rendered?
-- Does it work, complet castles?
+# todo
 
-- add default rule
+- faster resume, use resume checkpoints every N'th frame.
+  would be really nice to have every 500 frame, but it consumes a lot of rom-space (7 bytes / seed).
+
+- fix any% vs. warpless (+ default rules for both too).
+
+- add default rule (need rules, i am too fucking bad).
+
+- maybe use github-íssues over this crap? :)
+
+# done
+
+- Lugi message removed ? might cause it to get rendered? (done)
+- Does it work, complet castles? (ish, done)
 - no rule on 1-1 (done)
 - No game over (done)
 - titlescreen (done)
-- play luigi? :)
+- play luigi? :) (done)
