@@ -37,7 +37,16 @@ The frame values are not updated continuously, as it was pretty hard to make any
 
 In addition, the current frame and frame-rule are also updated when you would normally get score.
 
-# Build Instructions
+# Get it!
+
+## Using IPS
+	
+	1. Download [Lunar IPS](http://fusoya.eludevisibility.org/lips/download/lips102.zip).
+	2. Get the latest IPS patch from from the ips directory in this repo.
+	3. Using Lunar IPS, patch your original SMB (US/JP) ROM with the .ips.
+
+
+## Building from scratch
 
 	1. Clone this repo.
 	2. Clone pellsson/badassm into the smbpractice directory.
