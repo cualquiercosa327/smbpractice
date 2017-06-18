@@ -794,7 +794,6 @@ SkipExpTimer:  dex                       ;move onto next timer
                bpl DecTimersLoop         ;do this until all timers are dealt with
                jsr UpdateFrameRule
 NoDecTimers:   inc FrameCounter          ;increment frame counter
-               jsr IncrementFrameNumber
                jmp NotPaused
 PauseSkip:     jsr RedrawAll
 NotPaused:
@@ -1096,7 +1095,7 @@ NukeTimer:
 ChangeSelection:
 		ldx MenuSelection
 		inx
-		cpx #5
+		cpx #4
 		bne SaveSelection
 		ldx #0
 SaveSelection:
@@ -1251,7 +1250,7 @@ SaveLevelNotWorld:
 		beq SavePowerUps
 		and #$03
 		sta LevelNumber
-		ldx #$6b ; offset
+		ldx #$4b ; offset
 		bne RedrawIt
 SavePowerUps:
 		cmp #3
@@ -1265,7 +1264,7 @@ NotNegative:
 		sta PowerUps
 		sec
 		sbc #1
-		ldx #$ab
+		ldx #$6b
 RedrawIt:
 		tay
 		iny
@@ -1278,7 +1277,7 @@ WorldSelectionDone:
 ;-------------------------------------------------------------------------------------
 
 RuleCursorData:
-	.db $22, $d0, $06, $24, $24, $24, $24, $24, $24, $00
+	.db $22, $aa, $06, $24, $24, $24, $24, $24, $24, $00
 
 DrawRuleCursor:
 		ldy #9
@@ -1321,9 +1320,10 @@ IconDataRead: lda MushroomIconData,y
               dey
               bpl IconDataRead
               lda MenuSelection
-              ;cmp #3
-              ;bmi FirstThree
-              
+              cmp #3
+              bmi FirstThree
+              clc
+              adc #2
 FirstThree:
               adc VRAM_Buffer1_Offset
               tax
@@ -1332,16 +1332,6 @@ FirstThree:
               rts
 
 ;-------------------------------------------------------------------------------------
-
-AdvanceFrame:
-	jsr AdvanceRandom
-	inc FrameCounter
-	rts
-
-;-------------------------------------------------------------------------------------
-NoAdvanceRequired:
-		jmp SecondaryGameSetupContinue
-
 AdvanceToRule:
 		;
 		; Regardless if rule, always honor powerups
@@ -1370,15 +1360,17 @@ NoPowerups:
 		ora TopScoreDisplay+3
 		ora TopScoreDisplay+4
 		ora TopScoreDisplay+5
-		beq NoAdvanceRequired
+		bne StartAdvance
+		rts
+StartAdvance:
 		lda IntervalTimerControl
-		cmp #$03
+		cmp #3
 DeadLock:
-        bne DeadLock
+		bne DeadLock
 		;
 		; Copy to current rule
 		;
-		ldx #5
+		ldx #4
 KeepCopyRule:
 		lda TopScoreDisplay+1,x
 		sta DisplayDigits+RULE_COUNT_OFFSET-4, x
@@ -1391,7 +1383,6 @@ KeepCopyRule:
 		;
 		ldx #6
 		lda #0
-		sta FrameCounter ; Restart frame counter
 ResetRandom:
 		sta PseudoRandomBitReg+1,x
 		dex
@@ -1430,11 +1421,6 @@ AdvanceFurther:
 		jsr AdvanceRandom
 		jsr AdvanceRandom
 		jsr AdvanceRandom
-
-		lda #21
-		clc
-		adc FrameCounter
-		sta FrameCounter
 		jmp AdvanceFurther
 
 RuleContinue:
@@ -1444,29 +1430,33 @@ RuleContinue:
 		lda #18
 		sta $02
 AdvanceWithin:
-		jsr AdvanceFrame
+		jsr AdvanceRandom
 		dec $02
 		bne AdvanceWithin
-
 		;
 		; Advance powerup frames
 		;
 MorePowerUpFrames:
 		dec PowerUpFrames
 		bmi NoPowerUpFrames
-		jsr AdvanceFrame
+		jsr AdvanceRandom
 		jmp MorePowerUpFrames
 NoPowerUpFrames:
 		;
-		; Nuke frame
+		; Set the correct framecounter
 		;
-		lda #$0
-		sta DisplayDigits+FRAME_NUMBER_OFFSET,x
-		sta DisplayDigits+FRAME_NUMBER_OFFSET-1,x
+		ldx #$a2
+		lda WorldNumber
+		beq SaveFrameCounter
+		lda LevelNumber
+		bne SaveFrameCounter
+		inx
+SaveFrameCounter:
+		stx FrameCounter
 		;
 		; On the correct framerule, continue with the game.
 		;
-		jmp SecondaryGameSetupContinue
+		rts
 
 ;-------------------------------------------------------------------------------------
 
@@ -1964,8 +1954,8 @@ IncModeTask_B: inc OperMode_Task  ;move onto next mode
 
 GameText:
 TopStatusBarLine:
-  .db $20, $42, $0e, $1b, $1e, $15, $0e ; "MARIO"
-  .db $24, $24, $24, $24, $24
+  .db $20, $44, $0c, $1b, $1e, $15, $0e ; "MARIO"
+  .db $24, $24, $24
   .db $0f, $1b, $0a, $16, $0e
   .db $20, $52, $0d, $15, $0e, $0f, $1d, $24 ; "WORLD  TIME"
   .db $19, $18, $1c, $24, $1d, $12, $16, $0e
@@ -2789,10 +2779,10 @@ WritePPUReg1:
 
 ;status bar name table offset and length data
 StatusBarData:
-      .db $f1, $04 ; top score display on title screen
-      .db $62, $04 ; player score
-      .db $62, $06
-      .db $6d, $02 ; coin tally
+      .db $cb, $04 ; top score display on title screen
+      .db $64, $04 ; player score
+      .db $64, $06
+      .db $6d, $03 ; coin tally
       .db $6d, $02
       .db $7c, $03 ; game timer
       .db $77, $03 ; POS
@@ -2966,10 +2956,8 @@ PrimaryGameSetup:
              lda #$01
              sta FetchNewGameTimerFlag   ;set flag to load game timer from header
              sta PlayerSize              ;set player's size to small
-             jmp SecondaryGameSetupContinue
 SecondaryGameSetup:
-             jmp AdvanceToRule
-SecondaryGameSetupContinue:
+             jsr AdvanceToRule
              lda #$00
              sta DisableScreenFlag     ;enable screen output
              tay
@@ -7249,20 +7237,22 @@ RedrawFrameNumbers:
 CoinPoints:
 AddToScore:
 GetSBNybbles:
+        jsr UpdateFrameNumber
         lda #STATUS_BAR_OFFSET
 UpdateNumber:
         jsr PrintStatusBarNumbers ;print status bar numbers based on nybbles, whatever they be
 NoZSup: ldx ObjectOffset          ;get enemy object buffer offset
         rts
 
-IncrementFrameNumber:
-      lda #$01
-      sta DigitModifier+5      ;set digit modifier to give player 50 points
-      ldy #FRAME_NUMBER_OFFSET
-      jsr DigitsMathRoutine  ;update the score internally with value in digit modifier
-      lda #0
-      sta DisplayDigits+FRAME_NUMBER_OFFSET-2
-      rts
+UpdateFrameNumber:
+		lda FrameCounter
+		jsr DivByTen
+		sta DisplayDigits+FRAME_NUMBER_OFFSET
+		txa
+		jsr DivByTen
+		sta DisplayDigits+FRAME_NUMBER_OFFSET-1
+		stx DisplayDigits+FRAME_NUMBER_OFFSET-2
+		rts
 
 UpdateFrameRule:
       lda #$14
