@@ -40,7 +40,7 @@ In addition, the current frame and frame-rule are also updated when you would no
 # Build Instructions
 
 	1. Clone this repo.
-	2. Clone pellsson/badassm into the same directory.
+	2. Clone pellsson/badassm into the smbpractice directory.
 	3. Put the original SMB (US/JP) as "smb-org.nes" in the smbpractice directory.
 	4. Run build.sh
 
