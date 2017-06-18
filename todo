@@ -1,7 +1,7 @@
 # todo
 
-- faster resume, use resume checkpoints every N'th frame.
-  would be really nice to have every 500 frame, but it consumes a lot of rom-space (7 bytes / seed).
+- faster resume, use resume checkpoints every N'th rule.
+  would be really nice to have every 500 rule, but it consumes a lot of rom-space (7 bytes / seed).
 
 - fix any% vs. warpless (+ default rules for both too).
 
