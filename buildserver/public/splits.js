@@ -77,7 +77,7 @@ function rebuild_download()
 	}
 	else
 	{
-		set_download('I dont understand anything. I broke really bad <.<')
+		set_download('I dont understand anything. I broke really bad <.< ' + splits.length)
 		return
 	}
 
@@ -139,6 +139,43 @@ function rebuild_download()
 	set_download('<a href="' + dl +  '">Download Ready!</a>')
 }
 
+function rule_entry(name, total, duration, rule)
+{
+	return { name, total, duration, rule }
+}
+
+function build_table(rules)
+{
+	let tbl = document.createElement("TABLE");
+	tbl.id = 'split_table'
+	tbl.createTHead();
+	tbl.createTBody();
+	populate_split_row(tbl.tHead.insertRow(0), [ 'Name', 'Total', 'Duration', 'Rule', 'Collected Power-up?' ])
+
+	for(let i = 0; i < rules.length; ++i)
+	{
+		let v = []
+
+		v.push(rules[i].name)
+		v.push(rules[i].total)
+		v.push(rules[i].duration)
+		v.push('<input type="text" id="rule_' + i + '" value="' + rules[i].rule + '" oninput="rebuild_download()" />')
+		v.push('<input type="checkbox" id="collect_' + i + '" onclick="rebuild_download()" />')
+
+		populate_split_row(tbl.insertRow(-1), v)
+	}
+
+	document.getElementById('splits').innerHTML = ''
+	document.getElementById('splits').appendChild(tbl)
+
+	rebuild_download()
+}
+
+function round_time(v)
+{
+	return Math.round(v * 100) / 100
+}
+
 function update_splits()
 {
 	try
@@ -164,18 +201,17 @@ function update_splits()
 			throw 'Expected 8 or 32 splits, found: ' + num_splits
 		}
 
-		let tbl = document.createElement("TABLE");
-		tbl.id = 'split_table'
-		tbl.createTHead();
-		tbl.createTBody();
-		populate_split_row(tbl.tHead.insertRow(0), [ 'Name', 'Total', 'Duration', 'Rule', 'Collected Power-up?' ])
+		let rules = []
+		let start_rule = Number(document.getElementById('start_rule').value);
+		let start_time = round_time(start_rule * (21/60))
+		//
+		// First possible rule to press start is 2, then 7 to get into 1-1
+		//
+		let rule_offset = 2 + 7
 
-		var rule_offset = 0
+		rules.push(rule_entry('Enter 1-1',  start_time,  start_time, start_rule + rule_offset));
 
-		rules = []
-		rules.push(Number(document.getElementById('start_rule').value))
-
-		for(let i = 1; i < num_splits; ++i)
+		for(let i = 0; i < (num_splits - 1); ++i)
 		{
 			let v = lines[index++].split(',')
 			if(4 != v.length)
@@ -186,31 +222,29 @@ function update_splits()
 			v.splice(1, 1)
 			let rule = (v[1] * 60) / 21
 
-			if(8 != num_splits && (3 == i || 5 == i))
+			if(document.getElementById('split_rule').checked)
 			{
-				//
-				// In warpless, all splits are split at Intermediate screen.
-				// In any%, world 4-1 and world 8-1 are split in accordance with the Practice ROM.
-				//
-				rule_offset += 7
+				if(8 == num_splits && (2 != i && 4 != i))
+				{
+					//
+					// In warpless, all splits are split at Intermediate screen.
+					// In any%, world 4-1 and world 8-1 are split in accordance with the Practice ROM.
+					//
+					rule_offset += 7
+				}
 			}
 
-			rule += Number(document.getElementById('start_rule').value)
+			rule += start_rule
 			rule += rule_offset
 
-			v.push('<input type="text" id="rule_' + i + '" value="' + Math.round(rule + rule_offset) + '" oninput="rebuild_download()" />')
-			v.push('<input type="checkbox" id="collect_' + i + '" onclick="rebuild_download()" />')
-			populate_split_row(tbl.insertRow(-1), v)
+			rules.push(rule_entry(v[0], round_time(v[1]), round_time(v[2]), Math.round(rule)));
 		}
 
 		index++;
-
-		document.getElementById('splits').innerHTML = ''
-		document.getElementById('splits').appendChild(tbl)
-
 		wsplit_get_param('Icons', lines, index, function(v) {})
 
-		rebuild_download()
+		console.log('so far so good')
+		build_table(rules)
 	}
 	catch(err)
 	{

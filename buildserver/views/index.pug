@@ -3,17 +3,20 @@ html
 		title SMB Practice ROM - Build Server!
 		script(src="splits.js")
 	body
-		h1 I cant code for shit. Everything is off by one.
-		h2 1-1 should start at "Pressing start at Rule", not when 1-1 was completed :)
-		h2 I'll fix everything tomorrow. GNGN
 		label(for='wsplit') Paste your wsplit file here:
 		textarea#wsplit(oninput="update_splits()")
 
 		div
 			h1 Split Information
 
-			label(for='start_rule') Pressing start at Rule: 
-			input#start_rule(type='text' value='2' oninput='update_splits()')
+			label(for='start_rule') Rules waited before pressing start: 
+			input#start_rule(type='text' value='0' oninput='update_splits()')
+			br
+			input#split_rule(type='radio' name='split_mode' onclick='update_splits()' checked)
+			| I split post frame-rule effect
+			br
+			input#split_first(type='radio' name='split_mode' onclick='update_splits()')
+			| I split on first frame of level
 
 			h3#title_id
 
