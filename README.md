@@ -43,12 +43,12 @@ In addition, the current frame and frame-rule are also updated as you land from 
 
 ## From the build-server!
 
-	Build server allows you to easily create a custom version of the Practice ROM with pre-defined frame-rules for each level. You can either enter them manually or create from a Wsplit file (to convert to Wsplit from other formats, you can use https://splits.io).
+Build server allows you to easily create a custom version of the Practice ROM with pre-defined frame-rules for each level. You can either enter them manually or create from a Wsplit file (to convert to Wsplit from other formats, you can use https://splits.io).
 
-	Build-server at: http://83.253.236.75:5555
+Build-server at: http://83.253.236.75:5555
 
 ## Using IPS
-	
+
 	1. Download Lunar IPS (http://fusoya.eludevisibility.org/lips/download/lips102.zip).
 	2. Get the latest IPS patch from from the ips directory in this repo.
 	3. Using Lunar IPS, patch your original SMB (US/JP) ROM with the .ips.
