@@ -238,6 +238,7 @@ HalfwayPage           = $075b
 LevelNumber           = $075c ;the actual dash number
 Hidden1UpFlag         = $075d
 ; CoinTally             = $075e
+FirstTimeInit         = $75e
 WorldNumber           = $075f
 AreaNumber            = $0760 ;internal number used to find areas
 
@@ -863,46 +864,31 @@ EraseStartRuleLoop:
 		bne EraseStartRuleLoop
 		rts
 
+;-------------------------------------------------------------------------------------
+
+DrawPowerUps:
+	ldy PowerUps
+	lda #$6b
+	jmp DrawSelectedNumber
+
+;-------------------------------------------------------------------------------------
+
 WarplessRules:
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw $1234 ; 1-1
-	.dw 0 ; 1-1
+	;<BUILD_PATCH_LEVELS>
+	.dw 0, 0, 0, 0 ; World 1
+	.dw 0, 0, 0, 0 ; World 2
+	.dw 0, 0, 0, 0 ; World 3
+	.dw 0, 0, 0, 0 ; World 4
+	.dw 0, 0, 0, 0 ; World 5
+	.dw 0, 0, 0, 0 ; World 6
+	.dw 0, 0, 0, 0 ; World 7
+	.dw 0, 0, 0, 0 ; World 8
+	;</BUILD_PATCH_LEVELS>
 
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw $0101 ; 1-1
-
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
-	.dw 0 ; 1-1
+PupsCollected:
+	;<BUILD_PATCH_PUPS>
+	.db 0, 0, 0, 0, 0, 0, 0, 0
+	;</BUILD_PATCH_PUPS>
 
 ByteToRule:
 	pha
@@ -935,7 +921,23 @@ SetPerfectLevelRule:
 	ldy #0
 	lda WarplessRules, x
 	jsr ByteToRule
-	rts
+	;
+	; Solve number of powerups
+	;
+	ldx WorldNumber
+	lda PupsCollected, x
+	ldy LevelNumber
+	beq DoneShifting
+MoreShifting:
+	ror
+	ror
+	dey
+	bne MoreShifting
+DoneShifting:
+	and #$03
+	sta PowerUps
+	jmp DrawPowerUps
+
 ;-------
 
 DoRestart:
@@ -1103,6 +1105,12 @@ SaveSelection:
 		jmp MenuDone
 
 GameMenuRoutine:
+		lda FirstTimeInit
+		bne MenuInitialized
+		jsr SetPerfectLevelRule
+		lda #$01
+		sta FirstTimeInit
+MenuInitialized:
 		jsr GetPlayerColors
 		ldy #$58
 		jsr DrawPlayer_Intermediate
@@ -1262,9 +1270,7 @@ NotThreeLol:
 		lda #2
 NotNegative:
 		sta PowerUps
-		sec
-		sbc #1
-		ldx #$6b
+		jmp DrawPowerUps
 RedrawIt:
 		tay
 		iny
@@ -12190,6 +12196,11 @@ LandPlyr: jsr ChkForLandJumpSpring   ;do sub to check for jumpspring metatiles a
           and Player_Y_Position      ;mask out lower nybble of player's vertical position
           sta Player_Y_Position      ;and store as new vertical position to land player properly
           jsr HandlePipeEntry        ;do sub to process potential pipe entry
+
+          lda Player_Y_Speed
+          beq NotJumping
+          jsr RedrawFrameNumbers
+NotJumping:
           lda #$00
           sta Player_Y_Speed         ;initialize vertical speed and fractional
           sta Player_Y_MoveForce     ;movement force to stop player's vertical movement

@@ -16,7 +16,10 @@ def patch_chr(c):
 
 print('Building INES image from output...')
 
-prg = open('smb.bin', 'rb').read()
+infile = 'smb.bin' if len(sys.argv) < 2 else sys.argv[1]
+outfile = 'smb.nes' if len(sys.argv) < 3 else sys.argv[2]
+
+prg = open(infile, 'rb').read()
 
 if len(prg) > 0x8000:
 	print('Too big prg rom by %d bytes' % (len(prg) - 0x8000))
@@ -31,8 +34,8 @@ pad = bytearray([ 0xEA ] * (0x8000 - (len(prg) + len(interrupts))))
 
 print('Adding %d bytes of padding before interrupts...' % (len(pad)))
 
-open('smb-hack.chr', 'wb').write(gfx)
-open('smb-hack.nes', 'wb').write(ines + prg + pad + interrupts + gfx)
+#open('smb-hack.chr', 'wb').write(gfx)
+open(outfile, 'wb').write(ines + prg + pad + interrupts + gfx)
 
 
 
