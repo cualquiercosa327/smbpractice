@@ -252,5 +252,3 @@ function update_splits()
 		set_download(' ERROR - ' + err)
 	}
 }
-
-

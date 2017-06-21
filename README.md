@@ -4,12 +4,13 @@ Super Mario Bros. practice ROM for advanced players.
 
 ## Features
 	* Detailed performance metrics; frame rule, frame and frames left on frame-rule.
-	* Shows relative x-position (for wrong warp practice).
 	* Select what level and frame rule to start on.
 	* Select number of power-ups collected.
-	* Predefined "perfect-frame-rule" for each level.
+	* Predefined frame-rule for each level.
+	* Per-level "save-states".
+	* Shows relative x-position (for wrong warp practice).
+	* Instant reset.
 	* Infinite lives.
-	* Instant reset button.
 	* Play as Luigi :) Poor guy never gets to play.
 
 ## Controls
@@ -20,9 +21,10 @@ Super Mario Bros. practice ROM for advanced players.
 	* Press B to set starting Rule to 0 (Will use current game rule if 0).
 	* Press Start as normal to start the game.
 	* Press Up when Rule is not selected to change to Luigi.
+
 ### In-game
-	* Press Select to get back to title screen.
-	* Press Start to pause and see current frame-metrics.
+	* Press Select while NOT paused to restart level at entered Frame Rule.
+	* Press Select while paused to return to Title Screen.
 
 ## Display
 From left to right, the top status bar displays are,
@@ -35,9 +37,15 @@ From left to right, the top status bar displays are,
 
 The frame values are not updated continuously, as it was pretty hard to make any sense of it. Instead, they are updated at certain checkpoints. All values are updated when you exit an area, by a pipe, a vine or by completing the level.
 
-In addition, the current frame and frame-rule are also updated when you would normally get score.
+In addition, the current frame and frame-rule are also updated as you land from a jump and when you would normally get score.
 
 # Get it!
+
+## From the build-server!
+
+	Build server allows you to easily create a custom version of the Practice ROM with pre-defined frame-rules for each level. You can either enter them manually or create from a Wsplit file (to convert to Wsplit from other formats, you can use https://splits.io).
+
+	Build-server at: http://83.253.236.75:5555
 
 ## Using IPS
 	

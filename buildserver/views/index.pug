@@ -1,7 +1,6 @@
 html
 	head
 		title SMB Practice ROM - Build Server!
-		script(src="splits.js")
 	body
 		label(for='wsplit') Paste your wsplit file here:
 		textarea#wsplit(oninput="update_splits()")
@@ -30,3 +29,5 @@ html
 
 			h3 Splits
 			div#splits
+
+		script(src="splits.js")

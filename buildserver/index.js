@@ -51,7 +51,7 @@ function write_splits(res, worlds) {
 
 			if(rules > 9999 || pups > 2)
 			{
-				res.status(500).send('Too high rule or too many pups')
+				res.status(500).send('Too high rule, or too many pups')
 				return
 			}
 
