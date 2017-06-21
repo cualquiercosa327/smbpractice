@@ -222,9 +222,11 @@ GameTimerExpiredFlag  = $0759
 
 PrimaryHardMode       = $076a
 SecondaryHardMode     = $06cc
-WorldSelectNumber     = $076b
-WorldSelectEnableFlag = $07fc
-ContinueWorld         = $07fd
+;WorldSelectNumber     = $076b
+;WorldSelectEnableFlag = $07fc
+;ContinueWorld         = $07fd
+SaveFrame              = $07fd
+SaveStateFlags         = $07fc
 
 CurrentPlayer         = $0753
 PlayerSize            = $0754
@@ -939,9 +941,31 @@ DoneShifting:
 	jmp DrawPowerUps
 
 ;-------
+LoadGameState:
+		lda SaveStateFlags
+		ora #$40
+		sta SaveStateFlags
+		ldx #$00
+		stx OperMode_Task
+		stx HalfwayPage
+		inx
+		stx OperMode
+		jsr LoadAreaPointer       ;get new level pointer
+		inc FetchNewGameTimerFlag ;set flag to load new game timer
+		;jsr ChgAreaMode           ;do sub to set secondary mode, disable screen and sprite 0
+		;           ;reset halfway page to 0 (beginning)
+ExitRestarts:
+		rts
 
-DoRestart:
-	jsr Start
+HandleRestarts:
+		lda SavedJoypadBits
+		and #Select_Button
+		beq ExitRestarts
+		lda GamePauseStatus
+		lsr
+		bcc LoadGameState
+		jmp Start
+
 PauseRoutine:
                lda OperMode           ;are we in victory mode?
                cmp #VictoryModeValue  ;if so, go ahead
@@ -951,13 +975,12 @@ PauseRoutine:
                lda OperMode_Task      ;if we are in game mode, are we running game engine?
                cmp #$03
                bne ExitPause          ;if not, leave
+               jsr HandleRestarts
 ChkPauseTimer: lda GamePauseTimer     ;check if pause timer is still counting down
                beq ChkStart
                dec GamePauseTimer     ;if so, decrement and leave
                rts
 ChkStart:      lda SavedJoypad1Bits   ;check to see if start is pressed
-               cmp #Select_Button
-               beq DoRestart
                and #Start_Button      ;on controller 1
                beq ClrPauseTimer
                lda GamePauseStatus    ;check to see if timer flag is set
@@ -1338,6 +1361,50 @@ FirstThree:
               rts
 
 ;-------------------------------------------------------------------------------------
+
+LoadSaveState:
+		lda SaveFrame
+		sta FrameCounter
+		lda SaveStateFlags
+		and #1
+		sta PlayerSize
+		lda SaveStateFlags
+		and #2
+		sta PlayerStatus
+		ldx #6
+RestoreMoreRandom:
+		lda $7ee, x
+		sta PseudoRandomBitReg,x
+		dex
+		bpl RestoreMoreRandom
+		rts
+
+HandleSaveState:
+		lda OperMode
+		beq AlreadyHasSaveState
+		lda SaveStateFlags
+		and #$40
+		bne LoadSaveState
+		lda SaveStateFlags
+		and #$80
+		bne AlreadyHasSaveState
+		lda FrameCounter
+		sta SaveFrame
+		lda PlayerSize
+		ora PlayerStatus
+		ora #$80
+		sta SaveStateFlags
+		ldx #6
+SaveMoreRandom:
+		lda PseudoRandomBitReg,x
+		sta $7ee, x
+		dex
+		bpl SaveMoreRandom
+AlreadyHasSaveState:
+		rts
+
+;-------------------------------------------------------------------------------------
+
 AdvanceToRule:
 		;
 		; Regardless if rule, always honor powerups
@@ -1452,8 +1519,6 @@ NoPowerUpFrames:
 		; Set the correct framecounter
 		;
 		ldx #$a2
-		lda WorldNumber
-		beq SaveFrameCounter
 		lda LevelNumber
 		bne SaveFrameCounter
 		inx
@@ -1593,6 +1658,7 @@ PlayerEndWorld:
                cpy #World8                ;if on world 8, player is done with game, 
                bcs EndChkBButton          ;thus branch to read controller
                lda #$00
+               sta SaveStateFlags
                sta AreaNumber             ;otherwise initialize area number used as offset
                sta LevelNumber            ;and level number control to start at area 1
                sta OperMode_Task          ;initialize secondary mode of operation
@@ -2612,14 +2678,14 @@ WorldSelectMessage1:
 PrincessSaved1:
 ;"YOUR QUEST IS OVER."
   .db $25, $a7, $04
-  .db $20, $18, $18, $19
+  .db $20, $18, $19
   .db $00
 
 WorldSelectMessage2:
 PrincessSaved2:
 ;"WE PRESENT YOU A NEW QUEST."
   .db $25, $e3, $04
-  .db $20, $18, $18, $19
+  .db $20, $18, $19
   .db $00
 
 ;"PUSH BUTTON B"
@@ -2789,13 +2855,13 @@ StatusBarData:
       .db $64, $04 ; player score
       .db $64, $06
       .db $6d, $03 ; coin tally
-      .db $6d, $02
+      .db $6d, $03
       .db $7c, $03 ; game timer
       .db $77, $03 ; POS
       .db $74, $02 ; LEFT
 
 StatusBarOffset:
-      .db $06, $0c, $12, $18, $1e, $24
+      .db $06, $0c, $12, FRAME_NUMBER_OFFSET+1, $1e, $24
       .db POSITION_OFFSET+1, FRAMES_REMAIN_OFFSET+1
 
 PrintStatusBarNumbers:
@@ -2964,6 +3030,7 @@ PrimaryGameSetup:
              sta PlayerSize              ;set player's size to small
 SecondaryGameSetup:
              jsr AdvanceToRule
+             jsr HandleSaveState
              lda #$00
              sta DisableScreenFlag     ;enable screen output
              tay
@@ -5678,6 +5745,7 @@ ChkBehPipe: lda Player_SprAttrib      ;check for sprite attributes
 IntroEntr:  jsr EnterSidePipe         ;execute sub to move player to the right
             dec ChangeAreaTimer       ;decrement timer for change of area
             bne ExitEntr              ;branch to exit if not yet expired
+            sta SaveStateFlags
             inc DisableIntermediate   ;set flag to skip world and lives display
             jmp NextArea              ;jump to increment to next area and set modes
 EntrMode2:  lda JoypadOverride        ;if controller override bits set here,
@@ -6006,6 +6074,7 @@ PlayerEndLevel:
           lda #EndOfLevelMusic
           sta EventMusicQueue       ;load win level music in event music queue
           lda #$00
+          sta SaveStateFlags		; Nuke savestate flags so that we capture a new save state on the next level
           sta ScrollLock            ;turn off scroll lock to skip this part later
 ChkStop:  lda Player_CollisionBits  ;get player collision bits
           lsr                       ;check for d0 set
@@ -7235,7 +7304,7 @@ MiscLoopBack:
 
 STATUS_BAR_OFFSET = $02
 RULE_COUNT_OFFSET = $0b
-FRAME_NUMBER_OFFSET = $17
+FRAME_NUMBER_OFFSET = $16
 FRAMES_REMAIN_OFFSET = $0e
 POSITION_OFFSET = $13
 
@@ -16159,7 +16228,7 @@ MusicHeaderData:
       .db WinCastleMusHdr-MHD
       .db DeathMusHdr-MHD
       .db EndOfLevelMusHdr-MHD
-      .db TimeRunningOutHdr-MHD
+      .db SilenceHdr-MHD
       .db SilenceHdr-MHD
 
       .db GroundLevelPart1Hdr-MHD   ;area music
@@ -16190,7 +16259,6 @@ MusicHeaderData:
 ;1 byte - square 1 data offset
 ;1 byte - noise data offset (not used by secondary music)
 
-TimeRunningOutHdr:    .db $08, <TimeRunOutMusData, >TimeRunOutMusData, $27, $18
 Star_CloudHdr:        .db $20, <Star_CloudMData, >Star_CloudMData, $2e, $1a, $40
 EndOfLevelMusHdr:     .db $20, <WinLevelMusData, >WinLevelMusData, $3d, $21
 ResidualHeaderData:   .db $20, $c4, $fc, $3f, $1d
@@ -16377,16 +16445,6 @@ CastleMusData:
 
       .db $84, $1a, $83, $18, $20, $84, $1e, $83, $1c, $28
       .db $26, $1c, $1a, $1c
-
-TimeRunOutMusData:
-      .db $81, $1c, $30, $04, $30, $30, $04, $1e, $32, $04, $32, $32
-      .db $04, $20, $34, $04, $34, $34, $04, $36, $04, $84, $36, $00
-
-      .db $46, $a4, $64, $a4, $48, $a6, $66, $a6, $4a, $a8, $68, $a8
-      .db $6a, $44, $2b
-
-      .db $81, $2a, $42, $04, $42, $42, $04, $2c, $64, $04, $64, $64
-      .db $04, $2e, $46, $04, $46, $46, $04, $22, $04, $84, $22
 
 WinLevelMusData:
       .db $87, $04, $06, $0c, $14, $1c, $22, $86, $2c, $22
