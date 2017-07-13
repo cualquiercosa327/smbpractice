@@ -4,8 +4,8 @@ Super Mario Bros. practice ROM for advanced players.
 
 ## Features
 	* Detailed performance metrics; frame rule, frame and frames left on frame-rule.
-	* Select what level and frame rule to start on.
-	* Select number of power-ups collected.
+	* Choose what level and frame rule to start on.
+	* Choose number of power-ups collected.
 	* Predefined frame-rule for each level.
 	* Press select to restart level from Frame Rule you entered.
 	* Shows relative x-position (for wrong warp practice).
