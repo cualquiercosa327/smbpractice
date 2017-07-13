@@ -1,35 +1,51 @@
 html
 	head
 		title SMB Practice ROM - Build Server!
+		link(rel='stylesheet' href='bootstrap-3.3.7-dist/css/bootstrap.min.css')
+		script(src='jquery-3.2.1.min.js')
+		script(src='bootstrap-3.3.7-dist/js/bootstrap.min.js')
+
 	body
-		label(for='wsplit') Paste your wsplit file here:
-		textarea#wsplit(oninput="update_splits()")
+		.container
+			h1 SMB Practice ROM
+			.col-xs-4
+				.row
+					label(for='wsplit') Paste your wsplit file here:
+					.form-group
+						textarea#wsplit.form-control(oninput="splits_pasted()")
 
-		p ...or if you just want the Practice ROM but don't care for pre-defined splits, get it <a href="smbpractice.nes">here</a>.
+					p ...or if you just want the Practice ROM but don't care for pre-defined splits, get it <a href="smbpractice.nes">here</a>.
+				.row#config(style='display: none;')
+					fieldset
+						.form-group
+							label(for='start_rule') Rules waited before pressing start: 
+							input#start_rule.form-control(type='text' size='10' value='0' oninput='update_splits()')
 
-		div
-			h1 Split Information
+						label(for='split_at') Where do you split?
+						.form-group#split_at
+							.btn-group(data-toggle='buttons')
+								label.btn.btn-primary.active(onclick='change_split_mode(true)') Post frame-rule effect
+									input#split_rule(type='radio' name='split_mode' checked)
 
-			label(for='start_rule') Rules waited before pressing start: 
-			input#start_rule(type='text' value='0' oninput='update_splits()')
-			br
-			input#split_rule(type='radio' name='split_mode' onclick='update_splits()' checked)
-			| I split post frame-rule effect
-			br
-			input#split_first(type='radio' name='split_mode' onclick='update_splits()')
-			| I split on first frame of level
+								label.btn.btn-primary(onclick='change_split_mode(false)') First frame of level 
+									input#split_first(type='radio' name='split_mode')
 
-			h3#title_id
-
-			label(for='download') Download: 
-			span#download
-
-			br
-
-			label(for='attempts_id') Attempts: 
-			span#attempts_id
-
-			h3 Splits
-			div#splits
+			.col-xs-7#info(style='display: none;')
+				p
+					label(for='download') Download: 
+					span#download
+				p
+					label(for='attempts_id') Attempts: 
+					span#attempts_id
+				h3#title_id
+				table#splits.table.table-hover.table-striped
+					thead
+						tr
+							th Split name
+							th Total
+							th Duration
+							th Rule
+							th Power-up
+					tbody
 
 		script(src="splits.js")

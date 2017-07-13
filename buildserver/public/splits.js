@@ -1,3 +1,5 @@
+var split_rule = true
+
 function wsplit_get_param(key, lines, index, dispatch, is_opt)
 {
 	if(lines[index].startsWith(key + '='))
@@ -35,15 +37,23 @@ function get_rule(index)
 
 function collects_life(index)
 {
-	return document.getElementById('collect_' + index).checked
+	let cl = document.getElementById('collect_' + index)
+	if(!cl)
+	{
+		return false
+	}
+	return cl.checked
+}
+
+function get_splits_body()
+{
+	return document.getElementById('splits').getElementsByTagName('tbody')[0]
 }
 
 function rebuild_download()
 {
 	var pups_collected = 0
-	var splits = document.getElementById('split_table').rows.length - 1
-
-	console.log(splits)
+	var splits = get_splits_body().rows.length
 	var worlds;
 
 	if(8 == splits)
@@ -106,9 +116,6 @@ function rebuild_download()
 					return
 				}
 
-				prev = rule
-				worlds[i][x] = rule + ':' + num_pups
-
 				if(collects_life(rule_index))
 				{
 					if(++num_pups > 2)
@@ -117,6 +124,9 @@ function rebuild_download()
 						return
 					}
 				}
+
+				prev = rule
+				worlds[i][x] = rule + ':' + num_pups
 			}
 			else
 			{
@@ -134,8 +144,6 @@ function rebuild_download()
 			dl += 'w' + (i + 1) + '=' + worlds[i][x] + '&'
 		}
 	}
-	console.log(dl)
-
 	set_download('<a href="' + dl +  '">Download Ready!</a>')
 }
 
@@ -146,27 +154,28 @@ function rule_entry(name, total, duration, rule)
 
 function build_table(rules)
 {
-	let tbl = document.createElement("TABLE");
-	tbl.id = 'split_table'
-	tbl.createTHead();
-	tbl.createTBody();
-	populate_split_row(tbl.tHead.insertRow(0), [ 'Name', 'Total', 'Duration', 'Rule', 'Collected Power-up?' ])
+	tbl = get_splits_body()
+	tbl.innerHTML = ''
 
 	for(let i = 0; i < rules.length; ++i)
 	{
 		let v = []
 
-		v.push(rules[i].name)
+		v.push('<b>' + rules[i].name + '</b>')
 		v.push(rules[i].total)
 		v.push(rules[i].duration)
-		v.push('<input type="text" id="rule_' + i + '" value="' + rules[i].rule + '" oninput="rebuild_download()" />')
-		v.push('<input type="checkbox" id="collect_' + i + '" onclick="rebuild_download()" />')
+		v.push('<input type="text" id="rule_' + i + '" size="4" value="' + rules[i].rule + '" oninput="rebuild_download()" />')
+		if(0 != i)
+		{
+			v.push('<input type="checkbox" id="collect_' + i + '" onclick="rebuild_download()" />')
+		}
+		else
+		{
+			v.push('');
+		}
 
 		populate_split_row(tbl.insertRow(-1), v)
 	}
-
-	document.getElementById('splits').innerHTML = ''
-	document.getElementById('splits').appendChild(tbl)
 
 	rebuild_download()
 }
@@ -222,7 +231,7 @@ function update_splits()
 			v.splice(1, 1)
 			let rule = (v[1] * 60) / 21
 
-			if(document.getElementById('split_rule').checked)
+			if(split_rule)
 			{
 				if(8 == num_splits && (2 != i && 4 != i))
 				{
@@ -243,7 +252,6 @@ function update_splits()
 		index++;
 		wsplit_get_param('Icons', lines, index, function(v) {})
 
-		console.log('so far so good')
 		build_table(rules)
 	}
 	catch(err)
@@ -252,3 +260,19 @@ function update_splits()
 		set_download(' ERROR - ' + err)
 	}
 }
+
+function splits_pasted()
+{
+	$("#info").fadeIn(500)
+	$("#config").fadeIn(500)
+	update_splits()
+}
+
+function change_split_mode(on_rule)
+{
+	split_rule = on_rule
+	update_splits()
+}
+
+
+
