@@ -7,9 +7,9 @@ Super Mario Bros. practice ROM for advanced players.
 	* Select what level and frame rule to start on.
 	* Select number of power-ups collected.
 	* Predefined frame-rule for each level.
-	* Per-level "save-states".
+	* Press select to restart level from Frame Rule you entered.
 	* Shows relative x-position (for wrong warp practice).
-	* Instant reset.
+	* Press select while paused to reset.
 	* Infinite lives.
 	* Play as Luigi :) Poor guy never gets to play.
 
