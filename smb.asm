@@ -963,7 +963,8 @@ HandleRestarts:
 		beq ExitRestarts
 		lda GamePauseStatus
 		lsr
-		bcc LoadGameState
+		; bcc LoadGameState
+		bcc ExitRestarts
 		jmp Start
 
 PauseRoutine:
@@ -2677,15 +2678,15 @@ MushroomRetainerSaved:
 WorldSelectMessage1:
 PrincessSaved1:
 ;"YOUR QUEST IS OVER."
-  .db $25, $a7, $04
-  .db $20, $18, $19
+  .db $25, $a7, $01
+  .db $1e
   .db $00
 
 WorldSelectMessage2:
 PrincessSaved2:
 ;"WE PRESENT YOU A NEW QUEST."
   .db $25, $e3, $04
-  .db $20, $18, $19
+  .db $20, $18, $19, $18
   .db $00
 
 ;"PUSH BUTTON B"
@@ -16224,7 +16225,7 @@ LoadWaterEventMusEnvData:
 MusicHeaderData:
       .db DeathMusHdr-MHD           ;event music
       .db DeathMusHdr-MHD
-      .db DeathMusHdr-MHD
+      .db WaterMusHdr-MHD
       .db WinCastleMusHdr-MHD
       .db DeathMusHdr-MHD
       .db EndOfLevelMusHdr-MHD
