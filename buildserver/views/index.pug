@@ -17,12 +17,14 @@ html
 					p ...or if you just want the Practice ROM but don't care for pre-defined splits, get it <a href="smbpractice.nes">here</a>.
 				.row#config(style='display: none;')
 					h4#title_id
+					p
+						span(style='color: red; font-weight: bold;') You must enter all info correctly, including power-ups in the table to the right, or the timing will be wrong.
 					fieldset
 						.form-group
 							label(for='start_rule') Rules waited before pressing start: 
 							input#start_rule.form-control(type='text' size='10' value='0' oninput='update_splits()')
 
-						label(for='split_at') Where do you split (must be correct)?
+						label(for='split_at') Where do you split?
 						.form-group#split_at
 							.btn-group(data-toggle='buttons')
 								label.btn.btn-primary.active(onclick='change_split_mode(true)') Post frame-rule effect
@@ -30,8 +32,6 @@ html
 
 								label.btn.btn-primary(onclick='change_split_mode(false)') First frame of level 
 									input#split_first(type='radio' name='split_mode')
-						p
-							span(style='color: red; font-weight: bold;') If you collected power-ups you MUST indicate where in the table to the right. Otherwise rules will be incorrect.
 						p
 							label(for='download') Download: 
 							span#download
