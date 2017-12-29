@@ -958,13 +958,13 @@ ExitRestarts:
 		rts
 
 HandleRestarts:
-		lda SavedJoypadBits
-		and #Select_Button
-		beq ExitRestarts
-		lda GamePauseStatus
-		lsr
-		; bcc LoadGameState
-		bcc ExitRestarts
+		lda JoypadBitMask
+		ora SavedJoypadBits
+		eor #Select_Button
+		cmp #B_Button
+		beq LoadGameState
+		cmp #A_Button
+		bne ExitRestarts
 		jmp Start
 
 PauseRoutine:
@@ -2678,8 +2678,8 @@ MushroomRetainerSaved:
 WorldSelectMessage1:
 PrincessSaved1:
 ;"YOUR QUEST IS OVER."
-  .db $25, $a7, $01
-  .db $1e
+  .db $25, $a7, $04
+  .db $20, $18, $19, $18
   .db $00
 
 WorldSelectMessage2:
@@ -3000,8 +3000,6 @@ SetInitNTHigh: sty CurrentNTAddr_High   ;store name table address
                lda #$0b                 ;set value for renderer to update 12 column sets
                sta ColumnSets           ;12 column sets = 24 metatile columns = 1 1/2 screens
                jsr GetAreaDataAddrs     ;get enemy and level addresses and load header
-               lda PrimaryHardMode      ;check to see if primary hard mode has been activated
-               bne SetSecHard           ;if so, activate the secondary no matter where we're at
                lda WorldNumber          ;otherwise check world number
                cmp #World5              ;if less than 5, do not activate secondary
                bcc CheckHalfway
