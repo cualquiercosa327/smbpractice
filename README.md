@@ -23,8 +23,8 @@ Super Mario Bros. practice ROM for advanced players.
 	* Press Up when Rule is not selected to change to Luigi.
 
 ### In-game
-	* Press Select while NOT paused to restart level at entered Frame Rule.
-	* Press Select while paused to return to Title Screen.
+	* Press Select + B to restart level at entered Frame Rule.
+	* Press Select + A to return to Title Screen.
 
 ## Display
 From left to right, the top status bar displays are,
