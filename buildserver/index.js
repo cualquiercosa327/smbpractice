@@ -10,11 +10,6 @@ app.set('view engine', 'pug')
 
 app.use(express.static('public'))
 
-app.get('/', function(req, res) {
-	res.render('index')
-})
-
-
 function write_splits(res, worlds) {
 	var world_rules = ''
 	var pup_bytes = '.db '
@@ -114,6 +109,12 @@ function write_splits(res, worlds) {
 }
 
 app.get('/', function(req, res) {
+	//
+	// To get an idea if anyone is using it...
+	//
+	const ip = req.connection.remoteAddress || '<no idea>'
+	console.log('New connection from: ' + ip)
+
 	res.render('index')
 })
 
