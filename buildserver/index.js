@@ -69,8 +69,8 @@ function write_splits(res, worlds) {
 		world_rules += '\n'
 	}
 
-	console.log(pup_bytes)
-	console.log(world_rules)
+	// console.log(pup_bytes)
+	// console.log(world_rules)
 
 	fs.readFile('../smb.asm', 'utf8', (err, data) => {
 		if(err) {
