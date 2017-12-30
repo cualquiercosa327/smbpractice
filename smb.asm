@@ -225,8 +225,9 @@ SecondaryHardMode     = $06cc
 ;WorldSelectNumber     = $076b
 ;WorldSelectEnableFlag = $07fc
 ;ContinueWorld         = $07fd
-SaveFrame              = $07fd
+JudgeState             = $076b
 SaveStateFlags         = $07fc
+SaveFrame              = $07fd
 
 CurrentPlayer         = $0753
 PlayerSize            = $0754
@@ -2027,12 +2028,20 @@ IncModeTask_B: inc OperMode_Task  ;move onto next mode
 
 GameText:
 TopStatusBarLine:
-  .db $20, $44, $0c, $1b, $1e, $15, $0e ; "MARIO"
-  .db $24, $24, $24
-  .db $0f, $1b, $0a, $16, $0e
-  .db $20, $52, $0d, $15, $0e, $0f, $1d, $24 ; "WORLD  TIME"
-  .db $19, $18, $1c, $24, $1d, $12, $16, $0e
-  .db $20, $68, $05, $24, $24, $24, $2e, $29 ; score trailing digit and coin display
+  ; <off, size>
+  .db $20, $44, $0c
+  ;
+  .db $1b, $1e, $15, $0e      ; "RULE"
+  .db $24, $24, $24           ; "T"
+  .db $0f, $1b, $0a, $16, $0e ; "FRAME"
+  ; <off, size>
+  .db $20, $52, $0d
+  ; 'RM POS  TIME J'
+  .db $1b, $16, $24, $19, $18, $1c, $24, $1d, $12, $16, $0e, $24, $13
+    ; <off, size>
+  .db $20, $68, $05, $24, $fe, $24, $2e, $29 ; score trailing digit and coin display
+  .db $20, $7e, $01, $fd
+
   .db $23, $c0, $7f, $aa ; attribute table data, clears name table 0 to palette 2
   .db $23, $c2, $01, $ea ; attribute table data, used for coin icon in status bar
   .db $ff ; end of data block
@@ -2071,31 +2080,38 @@ WarpZoneNumbers:
   .db $08, $07, $06, $00         ; the minus world
 
 GameTextOffsets:
-  .db TopStatusBarLine-GameText, TopStatusBarLine-GameText
-  .db WorldLivesDisplay-GameText, WorldLivesDisplay-GameText
-  .db TwoPlayerTimeUp-GameText, OnePlayerTimeUp-GameText
-  .db TwoPlayerGameOver-GameText, OnePlayerGameOver-GameText
-  .db WarpZoneWelcome-GameText, WarpZoneWelcome-GameText
+  .db TopStatusBarLine-GameText
+  .db WorldLivesDisplay-GameText
+  .db TwoPlayerTimeUp-GameText
+  .db TwoPlayerGameOver-GameText
+  .db WarpZoneWelcome-GameText
 
 WriteGameText:
                pha                      ;save text number to stack
-               asl
-               tay                      ;multiply by 2 and use as offset
-               cpy #$04                 ;if set to do top status bar or world/lives display,
+               tay
+               cpy #$02                 ;if set to do top status bar or world/lives display,
                bcc LdGameText           ;branch to use current offset as-is
-               cpy #$08                 ;if set to do time-up or game over,
-               bcc Chk2Players          ;branch to check players
-               ldy #$08                 ;otherwise warp zone, therefore set offset
-Chk2Players:   lda #0                   ;check for number of players
-               bne LdGameText           ;if there are two, use current offset to also print name
-               iny                      ;otherwise increment offset by one to not print name
+               cpy #$04                 ;if set to do time-up or game over,
+               bcc LdGameText           ;branch to check players
+               ldy #$04                 ;otherwise warp zone, therefore set offset
 LdGameText:    ldx GameTextOffsets,y    ;get offset to message we want to print
                ldy #$00
 GameTextLoop:  lda GameText,x           ;load message data
                cmp #$ff                 ;check for terminator
                beq EndGameText          ;branch to end text if found
+               cmp #$fe
+               bne CheckIsJudgeState
+               lda IntervalTimerControl
+               sbc #1
+               bpl WriteTextByte
+               lda #$14
+CheckIsJudgeState:
+               cmp #$fd
+               bne WriteTextByte
+               lda JudgeState
+WriteTextByte:
                sta VRAM_Buffer1,y       ;otherwise write data to buffer
-               inx                      ;and increment increment
+               inx
                iny
                bne GameTextLoop         ;do this for 256 bytes if no terminator found
 EndGameText:   lda #$00                 ;put null terminator at end
@@ -2857,9 +2873,9 @@ StatusBarData:
       .db $64, $06
       .db $6d, $03 ; coin tally
       .db $6d, $03
-      .db $7c, $03 ; game timer
-      .db $77, $03 ; POS
-      .db $74, $02 ; LEFT
+      .db $7a, $03 ; game timer
+      .db $75, $03 ; POS
+      .db $72, $02 ; LEFT
 
 StatusBarOffset:
       .db $06, $0c, $12, FRAME_NUMBER_OFFSET+1, $1e, $24
@@ -5941,6 +5957,12 @@ SideExitPipeEntry:
              ldy #$02
 ChgAreaPipe: dec ChangeAreaTimer       ;decrement timer for change of area
              bne ExitCAPipe
+             ;
+             ; Capture judge state (aka powerup-rule)
+             ;
+             lda FrameCounter
+             and #$3
+             sta JudgeState
              sty AltEntranceControl    ;when timer expires set mode of alternate entry
 ChgAreaMode: inc DisableScreenFlag     ;set flag to disable screen output
              lda #$00
@@ -6316,7 +6338,8 @@ ProcJumping:
            lda Player_Y_Speed         ;check player's vertical speed
            bpl InitJS                 ;if player's vertical speed motionless or down, branch
            jmp X_Physics              ;if timer at zero and player still rising, do not swim
-InitJS:    lda #$20                   ;set jump/swim timer
+InitJS:    jsr RedrawFrameNumbers
+           lda #$20                   ;set jump/swim timer
            sta JumpSwimTimer
            ldy #$00                   ;initialize vertical force and dummy variable
            sty Player_YMF_Dummy
@@ -7308,17 +7331,11 @@ FRAMES_REMAIN_OFFSET = $0e
 POSITION_OFFSET = $13
 
 RedrawFrameNumbers:
-CoinPoints:
 AddToScore:
 GetSBNybbles:
-        jsr UpdateFrameNumber
-        lda #STATUS_BAR_OFFSET
-UpdateNumber:
-        jsr PrintStatusBarNumbers ;print status bar numbers based on nybbles, whatever they be
-NoZSup: ldx ObjectOffset          ;get enemy object buffer offset
-        rts
-
-UpdateFrameNumber:
+		;
+		; Update frame
+		; 
 		lda FrameCounter
 		jsr DivByTen
 		sta DisplayDigits+FRAME_NUMBER_OFFSET
@@ -7326,6 +7343,13 @@ UpdateFrameNumber:
 		jsr DivByTen
 		sta DisplayDigits+FRAME_NUMBER_OFFSET-1
 		stx DisplayDigits+FRAME_NUMBER_OFFSET-2
+		;
+		; Print it i think...
+		;
+		lda #STATUS_BAR_OFFSET
+UpdateNumber:
+		jsr PrintStatusBarNumbers ;print status bar numbers based on nybbles, whatever they be
+NoZSup: ldx ObjectOffset          ;get enemy object buffer offset
 		rts
 
 UpdateFrameRule:
@@ -8243,16 +8267,9 @@ CheckForEnemyGroup:
         lda (EnemyData),y      ;get second byte and mask out 2 MSB
         and #%00111111
         cmp #$37               ;check for value below $37
-        bcc BuzzyBeetleMutate
+        bcc StrID
         cmp #$3f               ;if $37 or greater, check for value
         bcc DoGroup            ;below $3f, branch if below $3f
-
-BuzzyBeetleMutate:
-        cmp #Goomba          ;if below $37, check for goomba
-        bne StrID            ;value ($3f or more always fails)
-        ldy PrimaryHardMode  ;check if primary hard mode flag is set
-        beq StrID            ;and if so, change goomba to buzzy beetle
-        lda #BuzzyBeetle
 StrID:  sta Enemy_ID,x       ;store enemy object number into buffer
         lda #$01
         sta Enemy_Flag,x     ;set flag for enemy in buffer
@@ -8421,15 +8438,8 @@ InitRetainerObj:
 
 ;--------------------------------
 
-NormalXSpdData:
-      .db $f8, $f4
-
 InitNormalEnemy:
-         ldy #$01              ;load offset of 1 by default
-         lda PrimaryHardMode   ;check for primary hard mode flag set
-         bne GetESpd
-         dey                   ;if not set, decrement offset
-GetESpd: lda NormalXSpdData,y  ;get appropriate horizontal speed
+GetESpd: lda #$f8
 SetESpd: sta Enemy_X_Speed,x   ;store as speed for enemy object
          jmp TallBBox          ;branch to set bounding box control and other data
 
