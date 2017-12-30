@@ -10,7 +10,7 @@ Upon beating a level, the rightmost column in the statusbar, "J", will show you 
 
 ## Sockfolder FPG compatible timer
 
-Show the timer control value in the same mannar as Sockfolder FPG ROM under "-" in the statusbar. This is the value 0-K shown as level in Sockfolder FPG.
+Shows the timer control value in the same manner as Sockfolder FPG ROM under "-" in the statusbar. This is the value 0-K shown as level in Sockfolder FPG.
 
 ## Update frame & rule nr on jump
 
