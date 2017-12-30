@@ -222,10 +222,9 @@ GameTimerExpiredFlag  = $0759
 
 PrimaryHardMode       = $076a
 SecondaryHardMode     = $06cc
-;WorldSelectNumber     = $076b
+;WorldSelectNumber     = $076b - Free (confirmed)
 ;WorldSelectEnableFlag = $07fc
 ;ContinueWorld         = $07fd
-JudgeState             = $076b
 SaveStateFlags         = $07fc
 SaveFrame              = $07fd
 
@@ -2032,7 +2031,7 @@ TopStatusBarLine:
   .db $20, $44, $0c
   ;
   .db $1b, $1e, $15, $0e      ; "RULE"
-  .db $24, $24, $24           ; "T"
+  .db $24, $282, $24           ; "-"
   .db $0f, $1b, $0a, $16, $0e ; "FRAME"
   ; <off, size>
   .db $20, $52, $0d
@@ -2108,7 +2107,8 @@ GameTextLoop:  lda GameText,x           ;load message data
 CheckIsJudgeState:
                cmp #$fd
                bne WriteTextByte
-               lda JudgeState
+               lda IntervalTimerControl
+               and #$3
 WriteTextByte:
                sta VRAM_Buffer1,y       ;otherwise write data to buffer
                inx
@@ -5957,12 +5957,6 @@ SideExitPipeEntry:
              ldy #$02
 ChgAreaPipe: dec ChangeAreaTimer       ;decrement timer for change of area
              bne ExitCAPipe
-             ;
-             ; Capture judge state (aka powerup-rule)
-             ;
-             lda FrameCounter
-             and #$3
-             sta JudgeState
              sty AltEntranceControl    ;when timer expires set mode of alternate entry
 ChgAreaMode: inc DisableScreenFlag     ;set flag to disable screen output
              lda #$00
