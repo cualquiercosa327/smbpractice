@@ -2031,7 +2031,7 @@ TopStatusBarLine:
   .db $20, $44, $0c
   ;
   .db $1b, $1e, $15, $0e      ; "RULE"
-  .db $24, $282, $24           ; "-"
+  .db $24, $28, $24           ; "-"
   .db $0f, $1b, $0a, $16, $0e ; "FRAME"
   ; <off, size>
   .db $20, $52, $0d
