@@ -558,7 +558,8 @@ GroundMusicHeaderOfs  = $07c7
 AltRegContentFlag     = $07ca
 
 FrameRuleData     = $07df
-SaveFrameRuleData = $07db
+SaveFrameRuleData = $07d2
+SaveIntervalTimerControl = $07d7
 
 ;-------------------------------------------------------------------------------------
 ;CONSTANTS
@@ -1367,6 +1368,8 @@ FirstThree:
 ;-------------------------------------------------------------------------------------
 
 LoadSaveState:
+		lda SaveIntervalTimerControl
+		sta IntervalTimerControl
 		lda SaveFrame
 		sta FrameCounter
 		lda SaveStateFlags
@@ -1381,6 +1384,13 @@ RestoreMoreRandom:
 		sta PseudoRandomBitReg,x
 		dex
 		bpl RestoreMoreRandom
+		ldx #3
+LoadNextRule:
+		lda SaveFrameRuleData, x
+		sta FrameRuleData, x
+		dex
+		bpl LoadNextRule
+
 		lda SaveStateFlags
 		and #$bf ; Nuke load flag :)
 		sta SaveStateFlags
@@ -1396,6 +1406,9 @@ HandleSaveState:
 		lda SaveStateFlags
 		and #$80
 		bne AlreadyHasSaveState
+SaveCurrentState:
+		lda IntervalTimerControl
+		sta SaveIntervalTimerControl
 		lda FrameCounter
 		sta SaveFrame
 		lda PlayerSize
@@ -1409,9 +1422,12 @@ SaveMoreRandom:
 		dex
 		bpl SaveMoreRandom
 
-		; ldx $3
-		; lda FrameRuleData, x
-		; sta SaveFrameRuleData, x
+		ldx $3
+SaveNextRule:
+		lda FrameRuleData, x
+		sta SaveFrameRuleData, x
+		dex
+		bpl SaveNextRule
 
 AlreadyHasSaveState:
 		rts
@@ -1708,10 +1724,6 @@ FloateyNumTileData:
 
 ;high nybble is digit number, low nybble is number to
 ;add to the digit of the player's score
-ScoreUpdateData:
-      .db $ff ;dummy
-      .db $41, $42, $44, $45, $48
-      .db $31, $32, $34, $35, $38, $00
 
 FloateyNumbersRoutine:
               lda FloateyNum_Control,x     ;load control for floatey number
@@ -1732,15 +1744,7 @@ DecNumTimer:  dec FloateyNum_Timer,x       ;decrement value here
               bne LoadNumTiles             ;branch ahead if not found
               lda #Sfx_ExtraLife
               sta Square2SoundQueue        ;and play the 1-up sound
-LoadNumTiles: lda ScoreUpdateData,y        ;load point value here
-              lsr                          ;move high nybble to low
-              lsr
-              lsr
-              lsr
-              tax                          ;use as X offset, essentially the digit
-              lda ScoreUpdateData,y        ;load again and this time
-              and #%00001111               ;mask out the high nybble
-              jsr AddToScore               ;update the score accordingly
+LoadNumTiles: jsr AddToScore               ;update the score accordingly
 ChkTallEnemy: ldy Enemy_SprDataOffset,x    ;get OAM data offset for enemy object
               lda Enemy_ID,x               ;get enemy object identifier
               cmp #Spiny
@@ -9037,9 +9041,6 @@ HandleGroupEnemies:
         bcs SnglID                ;if so, branch
         pha                       ;save another copy to stack
         ldy #Goomba               ;load value for goomba enemy
-        lda PrimaryHardMode       ;if primary hard mode flag not set,
-        beq PullID                ;branch, otherwise change to value
-        ldy #BuzzyBeetle          ;for buzzy beetle
 PullID: pla                       ;get second copy from stack
 SnglID: sty $01                   ;save enemy id here
         ldy #$b0                  ;load default y coordinate

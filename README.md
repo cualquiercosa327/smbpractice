@@ -10,6 +10,8 @@ Super Mario Bros. practice ROM for advanced players.
 
 - Changed **restart game** to **Select + Down**
 
+- Visually restore rule-counter @ restart level (Judge & Timer control are restored too, but not visually).
+
 # Update v1.6 - 2017-12-30
 
 ## Judge-Radar
@@ -18,7 +20,7 @@ Upon beating a level, the rightmost column in the statusbar, "J", will show you 
 
 ## Sockfolder FPG compatible timer
 
-Shows the timer control value in the same manner as Sockfolder FPG ROM under "-" in the statusbar. This is the value 0-K shown as level in Sockfolder FPG.
+Shows the timer control value in the same manner as Sockfolder FPG ROM under "x" in the statusbar. This is the value 0-K shown as level in Sockfolder FPG.
 
 ## Update frame & rule nr on jump
 
