@@ -557,6 +557,9 @@ PauseModeFlag         = $07c6
 GroundMusicHeaderOfs  = $07c7
 AltRegContentFlag     = $07ca
 
+FrameRuleData     = $07df
+SaveFrameRuleData = $07db
+
 ;-------------------------------------------------------------------------------------
 ;CONSTANTS
 
@@ -961,9 +964,9 @@ HandleRestarts:
 		lda JoypadBitMask
 		ora SavedJoypadBits
 		eor #Select_Button
-		cmp #B_Button
+		cmp #Up_Dir
 		beq LoadGameState
-		cmp #A_Button
+		cmp #Down_Dir
 		bne ExitRestarts
 		jmp Start
 
@@ -1378,6 +1381,10 @@ RestoreMoreRandom:
 		sta PseudoRandomBitReg,x
 		dex
 		bpl RestoreMoreRandom
+		lda SaveStateFlags
+		and #$bf ; Nuke load flag :)
+		sta SaveStateFlags
+LuaHackDumpLoad: ; Euw...
 		rts
 
 HandleSaveState:
@@ -1401,6 +1408,11 @@ SaveMoreRandom:
 		sta $7ee, x
 		dex
 		bpl SaveMoreRandom
+
+		; ldx $3
+		; lda FrameRuleData, x
+		; sta SaveFrameRuleData, x
+
 AlreadyHasSaveState:
 		rts
 
@@ -1613,11 +1625,7 @@ PrintVictoryMessages:
 MRetainerMsg:  cmp #$02                  ;check primary message counter
                bcc IncMsgCounter         ;if not at 2 yet (world 1-7 only), branch
 ThankPlayer:   tay                       ;put primary message counter into Y
-               bne SecondPartMsg         ;if counter nonzero, skip this part, do not print first message
-               lda CurrentPlayer         ;otherwise get player currently on the screen
-               beq EvalForMusic          ;if mario, branch
-               iny                       ;otherwise increment Y once for luigi and
-               bne EvalForMusic          ;do an unconditional branch to the same place
+               beq EvalForMusic         ;if counter nonzero, skip this part, do not print first message
 SecondPartMsg: iny                       ;increment Y to do world 8's message
                lda WorldNumber
                cmp #World8               ;check world number
@@ -1676,8 +1684,9 @@ EndChkBButton: lda SavedJoypad1Bits
                ;
                ; TODO XXX DOES THIS IDIOTIC CRAP WORK?
                ;
-               jsr Start ; 
-EndExitTwo:    rts                        ;leave
+               jmp Start ; 
+EndExitTwo:    jsr RunSoundSubroutines
+               rts                        ;leave
 
 ;-------------------------------------------------------------------------------------
 
@@ -2031,13 +2040,13 @@ TopStatusBarLine:
   .db $20, $44, $0c
   ;
   .db $1b, $1e, $15, $0e      ; "RULE"
-  .db $24, $28, $24           ; "-"
+  .db $24, $29, $24           ; "x"
   .db $0f, $1b, $0a, $16, $0e ; "FRAME"
   ; <off, size>
   .db $20, $52, $0d
   ; 'RM POS  TIME J'
   .db $1b, $16, $24, $19, $18, $1c, $24, $1d, $12, $16, $0e, $24, $13
-    ; <off, size>
+   ; <off, size>
   .db $20, $68, $05, $24, $fe, $24, $2e, $29 ; score trailing digit and coin display
   .db $20, $7e, $01, $fd
 
@@ -3045,6 +3054,7 @@ PrimaryGameSetup:
              sta PlayerSize              ;set player's size to small
 SecondaryGameSetup:
              jsr AdvanceToRule
+LuaHackDumpSeed:
              jsr HandleSaveState
              lda #$00
              sta DisableScreenFlag     ;enable screen output
@@ -8458,6 +8468,7 @@ InitHammerBro:
       lda HBroWalkingTimerData,y
       sta EnemyIntervalTimer,x    ;set value as delay for hammer bro to walk left
       lda #$0b                    ;set specific value for bounding box size control
+LuaHackDumpHammer:
       jmp SetBBox
 
 ;--------------------------------

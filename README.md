@@ -2,6 +2,14 @@
 
 Super Mario Bros. practice ROM for advanced players.
 
+# Update v1.7 - 2017-01-07
+
+- **Fix bug** causing **state to become arbitrary** after entering a pipe (the Hammer Bro bug).
+
+- Changed **restart level** to **Select + Up**
+
+- Changed **restart game** to **Select + Down**
+
 # Update v1.6 - 2017-12-30
 
 ## Judge-Radar
@@ -51,8 +59,8 @@ I hope you people had a jolly Christmas; also happy new year! <3
 * Press **Up** when Rule is not selected to change to Luigi.
 
 ## In-game
-* Press **Select + B** to restart level at entered Frame Rule.
-* Press **Select + A** to return to Title Screen.
+* Press **Select + Up** to restart level at entered Frame Rule.
+* Press **Select + Down** to return to Title Screen.
 
 # Display
 From left to right, the top status bar displays are,
