@@ -950,6 +950,7 @@ LoadGameState:
 		ora #$40
 		sta SaveStateFlags
 		ldx #$00
+		stx NoteLengthTblAdder ; Less hysterical music
 		stx OperMode_Task
 		stx HalfwayPage
 		inx
@@ -1693,16 +1694,13 @@ PlayerEndWorld:
                lda #GameModeValue
                sta OperMode               ;set mode of operation to game mode
 EndExitOne:    rts                        ;and leave
-EndChkBButton: lda SavedJoypad1Bits
+EndChkBButton: 
+               jsr RunSoundSubroutines ; Ugly music
+               lda SavedJoypad1Bits
                ora SavedJoypad2Bits       ;check to see if B button was pressed on
                and #B_Button              ;either controller
-               beq EndExitTwo             ;branch to leave if not
-               ;
-               ; TODO XXX DOES THIS IDIOTIC CRAP WORK?
-               ;
+               beq EndExitOne
                jmp Start ; 
-EndExitTwo:    jsr RunSoundSubroutines
-               rts                        ;leave
 
 ;-------------------------------------------------------------------------------------
 
