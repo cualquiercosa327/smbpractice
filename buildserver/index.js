@@ -113,9 +113,19 @@ app.get('/', function(req, res) {
 	// To get an idea if anyone is using it...
 	//
 	const ip = req.connection.remoteAddress || '<no idea>'
-	console.log('New connection from: ' + ip)
+	console.log('Access root: ' + ip)
 
 	res.render('index')
+})
+
+app.get('/practice', function(req, res) {
+	//
+	// To get an idea if anyone is using it...
+	//
+	const ip = req.connection.remoteAddress || '<no idea>'
+	console.log('Access /practice: ' + ip)
+
+	res.render('practice')
 })
 
 app.get('/build', function(req, res) {
